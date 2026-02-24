@@ -18,14 +18,8 @@ export interface EventEmitter {
     destroy(): void;
 }
 
-// Signal connection interface
-export interface SignalConnection {
-    readonly id: number;
-    readonly signal: string;
-    readonly callback: (...args: any[]) => void;
-    readonly source: any;
-    disconnect(): void;
-}
+// Import SignalConnection from infrastructure
+import type { SignalConnection } from './infrastructure.js';
 
 // Signal manager for handling GNOME Shell signals
 export interface SignalManager {

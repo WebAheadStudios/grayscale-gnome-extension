@@ -16,3 +16,6 @@ export * from './monitors.js';
 export * from './effects.js';
 export * from './events.js';
 export * from './ui.js';
+
+// Infrastructure types for advanced architectural patterns
+export * from './infrastructure.js';
