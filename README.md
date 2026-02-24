@@ -88,6 +88,67 @@ enabling:
 - Better control over digital consumption habits
 - Enhanced productivity in distraction-prone environments
 
+## 🚀 2024 Modernization Achievements
+
+**This extension has undergone comprehensive modernization**, transforming from
+a JavaScript codebase to a **professional TypeScript extension with
+enterprise-grade architecture**:
+
+### ⚡ Modern Development Foundation
+
+- **Complete TypeScript Migration**: Full type safety with strict TypeScript
+  configuration
+- **Professional Tooling**: ESLint, Prettier, Jest, and modern development
+  workflow
+- **Automated Quality Assurance**: Pre-commit hooks, lint-staged, and
+  comprehensive validation
+- **Node.js LTS Support**: Uses Node.js 24 "Krypton" LTS for maximum stability
+
+### 🏗️ Enterprise-Grade Architecture
+
+- **Component-Based Design**: Modular architecture with dependency injection
+  patterns
+- **Infrastructure Layer**: Professional components for logging, error handling,
+  and performance monitoring
+- **Resource Management**: Advanced object pooling and memory optimization
+- **Error Recovery**: Comprehensive error boundaries with automatic recovery
+  strategies
+
+### 🔄 Comprehensive CI/CD Pipeline
+
+- **Automated Testing**: Jest test suite with performance and integration
+  testing
+- **Quality Gates**: Automated linting, formatting, and TypeScript compilation
+  checks
+- **Release Automation**: Semantic versioning with automated changelog
+  generation
+- **Security Scanning**: Dependency vulnerability monitoring and updates
+
+### 📊 Developer Experience Benefits
+
+- **IntelliSense Support**: Full IDE integration with type definitions and
+  auto-completion
+- **Hot Reloading**: Streamlined development workflow with instant feedback
+- **Professional Debugging**: Enhanced error reporting with stack traces and
+  context
+- **Collaborative Development**: GitHub workflows optimized for team
+  contributions
+
+### 🛠️ Infrastructure Components
+
+- [`BaseComponent`](src/infrastructure/BaseComponent.ts): Foundation for all
+  extension components
+- [`ComponentRegistry`](src/infrastructure/ComponentRegistry.ts): Dependency
+  injection and service management
+- [`SignalManager`](src/infrastructure/SignalManager.ts): Advanced GNOME Shell
+  signal handling
+- [`EffectPool`](src/infrastructure/EffectPool.ts): High-performance resource
+  pooling
+- [`ErrorBoundary`](src/infrastructure/ErrorBoundary.ts): Comprehensive error
+  handling
+- [`PerformanceMonitor`](src/infrastructure/PerformanceMonitor.ts): Real-time
+  performance metrics
+
 ## 📋 System Requirements
 
 **Supported Environments:**
@@ -211,31 +272,50 @@ graph TB
 
 **Component Responsibilities:**
 
-- **[`Extension`](src/extension.js)**: Main lifecycle and component coordination
-- **[`StateManager`](src/stateManager.js)**: Settings persistence and state
+- **[`extension.ts`](src/extension.ts)**: Main lifecycle and component
+  coordination
+- **[`stateManager.ts`](src/stateManager.ts)**: Settings persistence and state
   synchronization
-- **[`EffectManager`](src/effectManager.js)**: Hardware-accelerated effect
+- **[`effectManager.ts`](src/effectManager.ts)**: Hardware-accelerated effect
   application
-- **[`MonitorManager`](src/monitorManager.js)**: Multi-monitor detection and
+- **[`monitorManager.ts`](src/monitorManager.ts)**: Multi-monitor detection and
   hotplug handling
-- **[`UIController`](src/uiController.js)**: Panel indicator and Quick Settings
-  integration
+- **[`uiController.ts`](src/uiController.ts)**: Panel indicator and Quick
+  Settings integration
 
-## 🛠️ Development
+## 🛠️ Modern TypeScript Development
 
-### Setup Development Environment
+### Prerequisites
 
 ```bash
+# Install Node.js LTS (Krypton - v24.x)
+curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
 # Install development dependencies
 sudo apt update && sudo apt install -y \
     gnome-shell-extensions \
     gjs \
     libglib2.0-dev \
-    gettext
+    gettext \
+    glib-compile-schemas
+```
 
+### Development Setup
+
+```bash
 # Clone and setup
 git clone https://github.com/luiz/grayscale-gnome-extension.git
 cd grayscale-gnome-extension
+
+# Install development dependencies
+npm install
+
+# Run quality checks
+npm run compile     # TypeScript compilation
+npm run lint        # ESLint validation
+npm run test        # Jest test suite
+npm run build       # Build extension package
 
 # Enable development mode
 export GNOME_SHELL_DEVELOPMENT=true
@@ -245,66 +325,138 @@ make install-dev
 gnome-extensions enable grayscale-toggle@luiz.dev
 ```
 
-### Code Quality Standards
+### Development Workflow
 
 ```bash
-# Type checking
-npx tsc --noEmit
+# Automated quality checks (pre-commit hooks)
+npm run validate        # Run all checks
+npm run compile        # TypeScript compilation
+npm run lint           # ESLint validation
+npm run format         # Prettier code formatting
+npm run test           # Jest test suite
+npm run test:watch     # Watch mode testing
 
-# Linting (JavaScript/JSDoc)
-eslint src/**/*.js --config .eslintrc.json
+# Build and packaging
+npm run build          # Development build
+npm run build:prod     # Production build
+npm run clean          # Clean build artifacts
 
-# Schema validation
-glib-compile-schemas --strict schemas/
-
-# Extension validation
-gnome-extensions info grayscale-toggle@luiz.dev
+# Extension management
+npm run install-dev    # Install to GNOME
+npm run uninstall      # Remove extension
+npm run restart-shell  # Restart GNOME Shell (X11)
 ```
 
-### Testing Procedures
+### Quality Assurance
 
-- **Unit Tests**: Component isolation testing with mocked GNOME APIs
-- **Integration Tests**: Full extension lifecycle in test environment
-- **Multi-Monitor Tests**: Hardware configuration matrix validation
-- **Performance Tests**: Memory usage and animation smoothness verification
+- **TypeScript Compilation**: Strict type checking with zero errors
+- **ESLint**: Comprehensive code quality and standards validation
+- **Jest Testing**: Unit, integration, and performance test coverage
+- **Prettier**: Automated code formatting and consistency
+- **Pre-commit Hooks**: Automated validation before commits
+- **CI/CD Pipeline**: Comprehensive quality gates on all contributions
+
+### Testing Framework
+
+- **Unit Tests**: Component isolation with comprehensive mocking
+- **Integration Tests**: Full extension lifecycle validation
+- **Performance Tests**: Memory usage and animation performance
+- **Architecture Tests**: Infrastructure component validation
+- **E2E Testing**: Real GNOME Shell environment testing
 
 ### Contributing
 
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/enhanced-animation-system`
-3. Implement changes following
-   [GNOME JavaScript Guidelines](https://gitlab.gnome.org/GNOME/gjs/-/blob/HEAD/doc/Coding_Style.md)
-4. Add tests and documentation
-5. Commit using [Conventional Commits](https://www.conventionalcommits.org/):
-   `feat: add animation easing options`
-6. Submit pull request with detailed description
+1. **Fork the repository** and clone your fork
+2. **Install dependencies**: `npm install`
+3. **Create feature branch**: `git checkout -b feature/enhanced-effects`
+4. **Follow TypeScript standards** with full type annotations
+5. **Add comprehensive tests** for new functionality
+6. **Use conventional commits**: `feat: add advanced effect transitions`
+7. **Submit pull request** with detailed description
+
+**Quality Requirements:**
+
+- All TypeScript must compile without errors
+- Tests must maintain 80%+ coverage
+- ESLint validation must pass
+- Prettier formatting must be applied
+- Pre-commit hooks must pass
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for complete development guidelines.
 
-## 📁 Project Structure
+## 📁 Modern Project Structure
 
 ```
 grayscale-gnome-extension/
-├── src/                           # Extension source code
-│   ├── extension.js              # Main extension lifecycle
+├── src/                           # TypeScript source code
+│   ├── extension.ts              # Main extension lifecycle
 │   ├── metadata.json             # Extension metadata
-│   ├── stateManager.js           # Settings and state persistence
-│   ├── effectManager.js          # Hardware-accelerated effects
-│   ├── monitorManager.js         # Multi-monitor detection
-│   ├── uiController.js           # UI component coordination
-│   ├── panelIndicator.js         # Top panel integration
-│   ├── quickSettingsIntegration.js # Quick Settings toggle
-│   ├── settingsController.js     # Configuration management
-│   └── prefs.js                  # Preferences dialog
-├── schemas/                       # GSettings configuration
-│   └── org.gnome.shell.extensions.grayscale-toggle.gschema.xml
+│   ├── ambient.d.ts              # Global type declarations
+│   ├── types/                    # TypeScript definitions
+│   │   ├── index.ts              # Central type exports
+│   │   ├── extension.ts          # Extension interfaces
+│   │   ├── effects.ts            # Effect system types
+│   │   ├── monitors.ts           # Multi-monitor types
+│   │   ├── settings.ts           # Configuration types
+│   │   ├── state.ts              # State management
+│   │   ├── ui.ts                 # UI component types
+│   │   ├── events.ts             # Event system types
+│   │   └── infrastructure.ts     # Infrastructure types
+│   ├── infrastructure/           # Enterprise architecture
+│   │   ├── index.ts              # Infrastructure exports
+│   │   ├── BaseComponent.ts      # Component foundation
+│   │   ├── ComponentRegistry.ts  # Dependency injection
+│   │   ├── SignalManager.ts      # Signal handling
+│   │   ├── EffectPool.ts         # Resource pooling
+│   │   ├── ErrorBoundary.ts      # Error handling
+│   │   ├── Logger.ts             # Logging system
+│   │   ├── ConfigCache.ts        # Configuration cache
+│   │   └── PerformanceMonitor.ts # Performance metrics
+│   ├── enhanced/                 # Enhanced components
+│   │   └── EnhancedEffectManager.ts # Advanced effects
+│   ├── tests/                    # Test infrastructure
+│   │   ├── setup.ts              # Jest setup
+│   │   ├── ArchitectureValidator.ts # Component tests
+│   │   ├── infrastructure.test.ts   # Infrastructure tests
+│   │   └── performance.test.ts      # Performance tests
+│   ├── stateManager.ts           # Settings and state
+│   ├── effectManager.ts          # Hardware effects
+│   ├── monitorManager.ts         # Multi-monitor support
+│   ├── uiController.ts           # UI coordination
+│   ├── panelIndicator.ts         # Panel integration
+│   ├── quickSettingsIntegration.ts # Quick Settings
+│   ├── settingsController.ts     # Configuration
+│   └── prefs.ts                  # Preferences dialog
+├── src-backup/                   # JavaScript originals
+│   └── [preserved original files]
+├── .github/                      # GitHub automation
+│   ├── workflows/                # CI/CD pipelines
+│   │   ├── ci.yml               # Pull request validation
+│   │   ├── main.yml             # Main branch QA
+│   │   ├── release.yml          # Release automation
+│   │   └── dependencies.yml     # Dependency management
+│   ├── ISSUE_TEMPLATE/          # Issue templates
+│   └── PULL_REQUEST_TEMPLATE.md # PR template
+├── scripts/                      # Build automation
+│   ├── build.js                 # Build system
+│   ├── generate-docs.js         # Documentation
+│   ├── update-metadata-version.js # Version sync
+│   └── validate-metadata.js    # Metadata validation
+├── schemas/                      # GSettings configuration
 ├── po/                           # Internationalization
-│   └── .gitkeep
 ├── docs/                         # Documentation
-│   ├── user-guide.md             # User documentation
-│   ├── developer-guide.md        # Development guide
-│   ├── installation-guide.md     # Installation procedures
-│   └── architecture-design.md    # Technical architecture
+├── .husky/                       # Git hooks
+├── dist/                         # Build output
+├── coverage/                     # Test coverage reports
+├── package.json                  # Node.js dependencies
+├── tsconfig.json                 # TypeScript configuration
+├── eslint.config.js              # ESLint rules
+├── jest.config.js                # Jest testing config
+├── .prettierrc                   # Prettier formatting
+├── .editorconfig                 # Editor configuration
+├── .node-version                 # Node.js version spec
+├── .lintstagedrc.json           # Pre-commit config
+├── .releaserc.json              # Release config
 ├── CHANGELOG.md                  # Version history
 ├── CONTRIBUTING.md               # Development guidelines
 ├── LICENSE                       # GPL-3.0 license
