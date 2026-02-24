@@ -18,7 +18,6 @@ schemas/gschemas.compiled
 po/*.mo
 
 # Editor and IDE files
-.vscode/
 .idea/
 *.swp
 *.swo

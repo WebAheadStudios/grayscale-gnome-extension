@@ -1,0 +1,47 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Extension",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/dist/extension.js",
+            "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+            "skipFiles": ["<node_internals>/**"],
+            "env": {
+                "NODE_ENV": "development",
+                "GNOME_SHELL_DEVELOPMENT": "true"
+            },
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "sourceMaps": true,
+            "preLaunchTask": "npm: build"
+        },
+        {
+            "name": "Debug Tests",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/node_modules/.bin/jest",
+            "args": ["--runInBand", "--no-cache", "--no-coverage"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "env": {
+                "NODE_ENV": "test"
+            }
+        },
+        {
+            "name": "Debug Current Test File",
+            "type": "node",
+            "request": "launch",
+            "program": "${workspaceFolder}/node_modules/.bin/jest",
+            "args": ["${relativeFile}", "--runInBand", "--no-cache", "--no-coverage"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "env": {
+                "NODE_ENV": "test"
+            }
+        }
+    ]
+}
