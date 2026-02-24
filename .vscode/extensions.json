@@ -2,7 +2,7 @@
     "recommendations": [
         "esbenp.prettier-vscode",
         "dbaeumer.vscode-eslint",
-        "ms-vscode.vscode-typescript-next",
+        "ms-vscode.vscode-typescript",
         "bradlc.vscode-tailwindcss",
         "ms-vscode.vscode-json",
         "redhat.vscode-yaml",
@@ -14,5 +14,5 @@
         "gruntfuggly.todo-tree",
         "aaron-bond.better-comments"
     ],
-    "unwantedRecommendations": ["ms-vscode.vscode-typescript", "hookyqr.beautify"]
+    "unwantedRecommendations": ["ms-vscode.vscode-typescript-next", "hookyqr.beautify"]
 }
