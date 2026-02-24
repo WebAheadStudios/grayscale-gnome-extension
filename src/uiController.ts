@@ -299,7 +299,13 @@ export class UIController extends GObject.Object implements IUIController, Exten
         }
 
         try {
-            this._panelIndicator = new PanelIndicator(this._extension);
+            // Create extension object compatible with panel indicator
+            const extensionObj = {
+                ...this._extension,
+                getComponent: this._extension.getComponent.bind(this._extension),
+                getSettings: this._extension.getSettings.bind(this._extension),
+            };
+            this._panelIndicator = new PanelIndicator(extensionObj as any);
             this._panelIndicator.enable();
 
             (this as any).emit('ui-state-changed', 'panel-indicator', true);
