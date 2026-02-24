@@ -316,7 +316,7 @@ sudo apt update && sudo apt install -y \
 
 ```bash
 # Clone and setup
-git clone https://github.com/luiz/grayscale-gnome-extension.git
+git clone https://github.com/webaheadstudios/grayscale-gnome-extension.git
 cd grayscale-gnome-extension
 
 # Install development dependencies
@@ -333,7 +333,7 @@ export GNOME_SHELL_DEVELOPMENT=true
 
 # Install and test locally
 make install-dev
-gnome-extensions enable grayscale-toggle@luiz.dev
+gnome-extensions enable grayscale-toggle@webaheadstudios.com
 ```
 
 ### Development Workflow
@@ -552,7 +552,7 @@ gnome-shell --test-mode
 xrandr --listmonitors
 
 # Monitor hotplug testing
-gnome-extensions prefs grayscale-toggle@luiz.dev
+gnome-extensions prefs grayscale-toggle@webaheadstudios.com
 ```
 
 See [`docs/installation-guide.md`](docs/installation-guide.md) for comprehensive
@@ -577,9 +577,9 @@ ecosystem projects.
 
 - **Documentation**: Complete guides in [`docs/`](docs/) directory
 - **Issues**: Report bugs and feature requests via
-  [GitHub Issues](https://github.com/luiz/grayscale-gnome-extension/issues)
+  [GitHub Issues](https://github.com/webaheadstudios/grayscale-gnome-extension/issues)
 - **Discussions**: Community support via
-  [GitHub Discussions](https://github.com/luiz/grayscale-gnome-extension/discussions)
+  [GitHub Discussions](https://github.com/webaheadstudios/grayscale-gnome-extension/discussions)
 - **IRC**: `#gnome-extensions` on
   [irc.gnome.org](https://wiki.gnome.org/Community/GettingInTouch/IRC)
 

@@ -1,12 +1,12 @@
 {
-  "uuid": "grayscale-toggle@luiz.dev",
+  "uuid": "grayscale-toggle@webaheadstudios.com",
   "name": "Grayscale Toggle",
   "description": "Toggle grayscale effect for monitors with keyboard shortcuts and panel indicator",
   "version": "1.0.0",
   "shell-version": [
     "46"
   ],
-  "url": "https://github.com/luiz/grayscale-gnome-extension",
+  "url": "https://github.com/webaheadstudios/grayscale-gnome-extension",
   "settings-schema": "org.gnome.shell.extensions.grayscale-toggle",
   "gettext-domain": "grayscale-toggle",
   "session-modes": [
