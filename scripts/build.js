@@ -290,10 +290,51 @@ async function createDistributionPackage() {
   }
 }
 
+// Installation helper functions
+async function getExtensionStatus(uuid) {
+  try {
+    const output = execSilent(`gnome-extensions show ${uuid}`);
+    if (!output) return 'not-installed';
+
+    const lines = output.split('\n');
+    const stateLine = lines.find(line => line.trim().startsWith('State:'));
+
+    if (stateLine) {
+      const state = stateLine.split(':')[1].trim().toLowerCase();
+      return state;
+    }
+
+    return 'unknown';
+  } catch (err) {
+    return 'not-installed';
+  }
+}
+
+async function canInstallNow() {
+  // Check if gnome-extensions tool is available
+  const hasGnomeExtensions = execSilent('which gnome-extensions');
+  if (!hasGnomeExtensions) {
+    warn('gnome-extensions tool not found. Cannot auto-install.');
+    return false;
+  }
+
+  // Check if we're running on GNOME
+  const hasGnomeShell = execSilent('which gnome-shell');
+  if (!hasGnomeShell) {
+    warn('GNOME Shell not detected. Cannot auto-install.');
+    return false;
+  }
+
+  return true;
+}
+
 async function displayInstructions(packagePath) {
   const metadata = JSON.parse(
     readFileSync(join(BUILD_DIR, 'metadata.json'), 'utf8')
   );
+
+  const canInstall = await canInstallNow();
+  const extensionStatus = canInstall ? await getExtensionStatus(metadata.uuid) : 'unknown';
 
   console.log('\n' + '='.repeat(60));
   success('Build completed successfully!');
@@ -302,16 +343,40 @@ async function displayInstructions(packagePath) {
   console.log(`🆔 UUID: ${metadata.uuid}`);
   console.log(`📛 Name: ${metadata.name}`);
   console.log(`🐚 Shell versions: ${metadata['shell-version'].join(', ')}`);
-  console.log('\n📋 Installation instructions:');
-  console.log(`1. Install: npm run install:extension`);
+
+  if (canInstall) {
+    console.log(`📊 Current Status: ${extensionStatus}`);
+  }
+
+  console.log('\n📋 Quick Installation Commands:');
+  console.log(`🚀 Dev install:     ${chalk.cyan('npm run dev:install')}`);
+  console.log(`📦 Install:         ${chalk.cyan('npm run install:extension')}`);
+  console.log(`✅ Enable:          ${chalk.cyan('npm run enable:extension')}`);
+  console.log(`❌ Disable:         ${chalk.cyan('npm run disable:extension')}`);
+  console.log(`📊 Check status:    ${chalk.cyan('npm run extension:status')}`);
+  console.log(`🗑️  Uninstall:      ${chalk.cyan('npm run uninstall:extension')}`);
+
+  console.log('\n📋 Manual Installation:');
   console.log(
-    `2. Or manually: unzip -o '${packagePath}' -d '$HOME/.local/share/gnome-shell/extensions/${metadata.uuid}/'`
+    `1. Install: unzip -o '${packagePath}' -d '$HOME/.local/share/gnome-shell/extensions/${metadata.uuid}/'`
   );
-  console.log(`3. Enable: gnome-extensions enable ${metadata.uuid}`);
+  console.log(`2. Enable: gnome-extensions enable ${metadata.uuid}`);
   console.log(
-    `4. Restart GNOME Shell: Alt+F2, type 'r', press Enter (X11) or log out/in (Wayland)`
+    `3. Restart GNOME Shell: Alt+F2, type 'r', press Enter (X11) or log out/in (Wayland)`
   );
+
   console.log('='.repeat(60) + '\n');
+
+  // Suggest next steps based on current status
+  if (canInstall) {
+    if (extensionStatus === 'not-installed') {
+      info('💡 Next step: Run "npm run dev:install" to install and enable the extension');
+    } else if (extensionStatus === 'disabled') {
+      info('💡 Next step: Run "npm run enable:extension" to enable the extension');
+    } else if (extensionStatus === 'enabled') {
+      success('Extension is already installed and enabled!');
+    }
+  }
 }
 
 // Main build function

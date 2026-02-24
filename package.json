@@ -21,9 +21,16 @@
         "copy-files": "mkdir -p dist && cp -r src/* dist/",
         "compile-schemas": "mkdir -p dist/schemas && cp schemas/*.gschema.xml dist/schemas/ && (glib-compile-schemas dist/schemas 2>/dev/null || echo 'Schema compilation will occur during installation')",
         "package": "cd dist && zip -r ../dist/grayscale-toggle@webaheadstudios.com.zip . -x '*.DS_Store' '*/.*'",
-        "install:extension": "npm run build:prod && gnome-extensions install dist/grayscale-toggle@webaheadstudios.com.zip",
+        "install:extension": "node scripts/install.js",
+        "uninstall:extension": "node scripts/install.js --uninstall",
+        "enable:extension": "node scripts/install.js --enable",
+        "disable:extension": "node scripts/install.js --disable",
+        "extension:status": "node scripts/install.js --status",
+        "dev:install": "npm run build:dev && node scripts/install.js --dev",
+        "dev:uninstall": "node scripts/install.js --uninstall",
+        "install:prod": "npm run build:prod && node scripts/install.js",
         "clean": "rm -rf dist/ build/ coverage/",
-        "dev": "npm run build:dev && npm run install:extension",
+        "dev": "npm run dev:install",
         "validate": "npm run compile && npm run lint:strict && npm run format:check && npm run test:ci",
         "validate:full": "npm run validate && npm run build:prod",
         "test:build": "npm run build:prod && echo 'Build test passed'",
@@ -37,7 +44,14 @@
         "docs:api": "node scripts/generate-docs.js",
         "validate-metadata": "node scripts/validate-metadata.js"
     },
-    "keywords": ["gnome", "gnome-shell", "extension", "grayscale", "accessibility", "toggle"],
+    "keywords": [
+        "gnome",
+        "gnome-shell",
+        "extension",
+        "grayscale",
+        "accessibility",
+        "toggle"
+    ],
     "author": "Luiz",
     "license": "MIT",
     "repository": {
@@ -52,24 +66,26 @@
         "node": ">=18.0.0"
     },
     "devDependencies": {
-        "@typescript-eslint/eslint-plugin": "^8.48.0",
-        "@typescript-eslint/parser": "^8.48.0",
-        "eslint": "^9.39.1",
-        "esbuild": "^0.25.10",
-        "typescript": "^5.9.2",
-        "prettier": "^3.7.3",
-        "chalk": "^5.3.0",
-        "jest": "^29.7.0",
         "@jest/globals": "^29.7.0",
-        "@types/jest": "^29.5.12",
-        "ts-jest": "^29.1.2",
-        "jest-environment-node": "^29.7.0",
-        "husky": "^9.0.11",
-        "lint-staged": "^15.2.10",
         "@semantic-release/changelog": "^6.0.3",
         "@semantic-release/git": "^10.0.1",
+        "@types/glob": "^8.1.0",
+        "@types/jest": "^29.5.12",
+        "@types/node": "^25.3.0",
+        "@typescript-eslint/eslint-plugin": "^8.48.0",
+        "@typescript-eslint/parser": "^8.48.0",
+        "chalk": "^5.3.0",
+        "conventional-changelog-conventionalcommits": "^7.0.2",
+        "esbuild": "^0.25.10",
+        "eslint": "^9.39.1",
+        "husky": "^9.0.11",
+        "jest": "^29.7.0",
+        "jest-environment-node": "^29.7.0",
+        "lint-staged": "^15.2.10",
+        "prettier": "^3.7.3",
         "semantic-release": "^23.0.8",
-        "conventional-changelog-conventionalcommits": "^7.0.2"
+        "ts-jest": "^29.1.2",
+        "typescript": "^5.9.2"
     },
     "dependencies": {
         "@girs/gnome-shell": "^49.1.0"
@@ -77,7 +93,9 @@
     "extensionMetadata": {
         "uuid": "grayscale-toggle@webaheadstudios.com",
         "name": "Grayscale Toggle",
-        "shell-version": ["46"],
+        "shell-version": [
+            "46"
+        ],
         "gettext-domain": "grayscale-toggle",
         "settings-schema": "org.gnome.shell.extensions.grayscale-toggle"
     }

@@ -173,54 +173,65 @@ enterprise-grade architecture**:
 
 ## 🚀 Quick Installation
 
-### Method 1: GNOME Extensions Website (Recommended)
+### Method 1: One-Command Installation (Recommended) 🔥
+
+**Material Shell-inspired convenience - just like the pros use!**
+
+```bash
+# Clone and install everything in one go
+git clone https://github.com/webaheadstudios/grayscale-gnome-extension.git
+cd grayscale-gnome-extension
+npm install
+npm run dev:install
+```
+
+**What this does:**
+- ✅ Builds the extension automatically
+- ✅ Creates development symlink for easy updates
+- ✅ Compiles GSettings schemas
+- ✅ Installs and enables the extension
+- ✅ Provides helpful status messages
+
+### Method 2: GNOME Extensions Website
 
 ```bash
 # Visit extensions.gnome.org and install "Grayscale Toggle"
-# Enable via GNOME Extensions app or:
-gnome-extensions enable grayscale-toggle@luiz.dev
+# Enable via GNOME Extensions app or command line
+gnome-extensions enable grayscale-toggle@webaheadstudios.com
 ```
 
-### Method 2: Manual Installation
+### Method 3: Advanced npm Commands
+
+Our modern build system provides comprehensive installation commands:
 
 ```bash
-# Clone the repository
-git clone https://github.com/luiz/grayscale-gnome-extension.git
-cd grayscale-gnome-extension
+# Development workflow
+npm run dev:install          # One-command dev setup
+npm run extension:status     # Check installation status
 
-# Install to user extensions directory
-mkdir -p ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev
-cp -r src/* ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev/
+# Production installation
+npm run install:extension    # Install from built package
+npm run install:prod         # Build production + install
 
-# Copy settings schema
-sudo cp schemas/org.gnome.shell.extensions.grayscale-toggle.gschema.xml \
-    /usr/share/glib-2.0/schemas/
-sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
+# Management commands
+npm run enable:extension     # Enable extension
+npm run disable:extension    # Disable extension
+npm run uninstall:extension  # Complete removal
 
-# Enable the extension
-gnome-extensions enable grayscale-toggle@luiz.dev
-
-# Restart GNOME Shell (X11 only - Wayland will auto-reload)
-# Alt+F2, type 'r', press Enter
+# Quick development cycle
+npm run dev:uninstall       # Quick uninstall for testing
+npm run build:dev           # Rebuild for development
 ```
 
-### Method 3: Development Build
+### Developer Benefits 🛠️
 
-```bash
-# Build from source with full development setup
-git clone https://github.com/luiz/grayscale-gnome-extension.git
-cd grayscale-gnome-extension
+This installation system provides the same level of convenience as Material Shell:
 
-# Make build script executable and run
-chmod +x build.sh
-./build.sh
-
-# Install development build
-make install
-
-# Enable with logging
-gnome-extensions enable grayscale-toggle@luiz.dev --verbose
-```
+- **One-Command Setup**: `npm run dev:install` does everything you need
+- **Cross-Platform**: Works on all Linux distributions with GNOME
+- **Status Management**: Easy checking with `npm run extension:status`
+- **Error Handling**: Clear error messages and recovery instructions
+- **Development Focus**: Symlinked installation for easy source updates
 
 ## 📚 Usage Guide
 

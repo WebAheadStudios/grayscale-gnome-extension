@@ -135,7 +135,70 @@
    - Click the gear icon next to the extension
    - Adjust preferences as needed
 
-### Method 3: Package Manager Installation
+### Method 3: Modern Development Installation (Material Shell Inspired)
+
+**One-command installation with convenient npm scripts - ideal for developers and power users**
+
+#### Quick Start (Recommended for Developers)
+
+```bash
+# Clone and set up in one go
+git clone https://github.com/webaheadstudios/grayscale-gnome-extension.git
+cd grayscale-gnome-extension
+npm install
+npm run dev:install
+```
+
+**What this does:**
+- Builds the extension automatically
+- Creates development symlink for easy testing
+- Compiles GSettings schemas
+- Installs and attempts to enable the extension
+
+#### Available Commands
+
+```bash
+# Main installation commands
+npm run dev:install          # Development installation (symlinked)
+npm run install:extension    # Production installation (copied files)
+npm run install:prod         # Build production package + install
+
+# Management commands
+npm run extension:status     # Check installation status
+npm run enable:extension     # Enable the extension
+npm run disable:extension    # Disable the extension
+npm run uninstall:extension  # Complete removal
+
+# Developer workflow
+npm run dev:uninstall       # Quick uninstall for testing
+npm run build:dev           # Build for development
+npm run build:prod          # Build for production
+```
+
+#### Advantages of this Method
+
+✅ **One-Command Setup**: `npm run dev:install` does everything
+✅ **Material Shell Parity**: Same convenience as popular extensions
+✅ **Development Focus**: Easy symlink setup for developers
+✅ **Cross-Platform**: Works on all Linux distributions with GNOME
+✅ **Status Management**: Easy checking with `npm run extension:status`
+✅ **Error Handling**: Clear error messages and recovery instructions
+
+#### Session Type Support
+
+**Wayland (Recommended):**
+```bash
+npm run dev:install
+# Extension installed - log out/in to activate
+```
+
+**X11:**
+```bash
+npm run dev:install
+# GNOME Shell restarts automatically
+```
+
+### Method 4: Package Manager Installation
 
 **For distributions that package the extension**
 
@@ -145,7 +208,7 @@
 # Once packaged (not yet available)
 sudo apt update
 sudo apt install gnome-shell-extension-grayscale-toggle
-gnome-extensions enable grayscale-toggle@luiz.dev
+gnome-extensions enable grayscale-toggle@webaheadstudios.com
 ```
 
 #### Fedora (Future Package)
@@ -153,7 +216,7 @@ gnome-extensions enable grayscale-toggle@luiz.dev
 ```bash
 # Once packaged (not yet available)
 sudo dnf install gnome-shell-extension-grayscale-toggle
-gnome-extensions enable grayscale-toggle@luiz.dev
+gnome-extensions enable grayscale-toggle@webaheadstudios.com
 ```
 
 #### Arch Linux (AUR Package)
@@ -378,13 +441,89 @@ fi
 
 ## 🛠 Development Installation
 
-### Full Development Setup
+### Modern Development Installation (Recommended)
+
+**Quick one-command setup inspired by Material Shell's convenience**
+
+#### 1. Clone and Install Dependencies
+
+```bash
+# Clone the repository
+git clone https://github.com/webaheadstudios/grayscale-gnome-extension.git
+cd grayscale-gnome-extension
+
+# Install dependencies
+npm install
+```
+
+#### 2. One-Command Development Setup
+
+```bash
+# Build and install extension in development mode
+npm run dev:install
+```
+
+This command automatically:
+- Builds the extension for development
+- Creates a symlink for easy development
+- Compiles GSettings schemas
+- Installs the extension
+- Attempts to enable it
+
+#### 3. Development Commands Reference
+
+```bash
+# Extension management
+npm run extension:status      # Check extension status
+npm run disable:extension     # Disable the extension
+npm run enable:extension      # Enable the extension
+npm run uninstall:extension   # Uninstall completely
+
+# Development workflow
+npm run dev:install          # Build + install + enable (dev mode)
+npm run dev:uninstall        # Quick uninstall for testing
+
+# Production installation
+npm run install:extension    # Install from built package
+npm run install:prod         # Build production + install
+```
+
+#### 4. Development Workflow
+
+```bash
+# Make your changes to source files...
+
+# Quick reinstall during development
+npm run dev:install
+
+# Or step by step:
+npm run build:dev           # Rebuild
+npm run disable:extension   # Disable
+npm run enable:extension    # Re-enable
+
+# Check status anytime
+npm run extension:status
+```
+
+#### 5. Monitor Extension Activity
+
+```bash
+# Watch GNOME Shell logs
+journalctl -f -o cat /usr/bin/gnome-shell | grep -i grayscale
+
+# Check extension errors
+gnome-extensions show grayscale-toggle@webaheadstudios.com
+```
+
+### Manual Development Setup (Advanced)
+
+**For developers who prefer manual control**
 
 #### 1. Clone and Setup Repository
 
 ```bash
 # Clone with development branches
-git clone --recursive https://github.com/luiz/grayscale-gnome-extension.git
+git clone --recursive https://github.com/webaheadstudios/grayscale-gnome-extension.git
 cd grayscale-gnome-extension
 
 # Set up development environment
@@ -392,23 +531,24 @@ export GNOME_SHELL_DEVELOPMENT=true
 export G_MESSAGES_DEBUG=all
 
 # Install development dependencies
-npm install  # If package.json exists
+npm install
 ```
 
-#### 2. Symlink Installation
+#### 2. Manual Symlink Installation
 
 ```bash
 # Create extension directory
 mkdir -p ~/.local/share/gnome-shell/extensions
 
-# Create development symlink
-ln -sf "$(pwd)/src" \
-    ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev
+# Build extension first
+npm run build:dev
 
-# Install schema for development
-sudo ln -sf "$(pwd)/schemas/org.gnome.shell.extensions.grayscale-toggle.gschema.xml" \
-    /usr/share/glib-2.0/schemas/
-sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
+# Create development symlink
+ln -sf "$(pwd)/dist" \
+    ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com
+
+# Compile schemas manually
+glib-compile-schemas ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com/schemas/
 ```
 
 #### 3. Development Tools Setup
@@ -417,24 +557,24 @@ sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
 # Install development tools
 npm install -g typescript eslint
 
-# Set up pre-commit hooks
+# Set up pre-commit hooks (if using git hooks)
 chmod +x .git/hooks/pre-commit
 
-# Enable extension with verbose logging
-gnome-extensions enable grayscale-toggle@luiz.dev --verbose
+# Enable extension manually
+gnome-extensions enable grayscale-toggle@webaheadstudios.com
 ```
 
-#### 4. Development Workflow
+#### 4. Manual Development Workflow
 
 ```bash
 # Monitor extension logs
 journalctl -f -o cat /usr/bin/gnome-shell | grep -i grayscale &
 
 # Make changes to source files...
-
-# Test changes (Wayland auto-reloads, X11 needs restart)
-gnome-extensions disable grayscale-toggle@luiz.dev
-gnome-extensions enable grayscale-toggle@luiz.dev
+# Rebuild and restart extension
+npm run build:dev
+gnome-extensions disable grayscale-toggle@webaheadstudios.com
+gnome-extensions enable grayscale-toggle@webaheadstudios.com
 ```
 
 ---
