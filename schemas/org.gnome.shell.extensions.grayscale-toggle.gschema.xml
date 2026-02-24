@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="grayscale-toggle">
+  
+  <schema id="org.gnome.shell.extensions.grayscale-toggle" path="/org/gnome/shell/extensions/grayscale-toggle/">
+    
+    <!-- Global State Settings -->
+    <key name="grayscale-enabled" type="b">
+      <default>false</default>
+      <summary>Enable grayscale effect</summary>
+      <description>Whether the grayscale effect is currently enabled globally</description>
+    </key>
+    
+    <!-- Keyboard Shortcuts -->
+    <key name="toggle-keybinding" type="as">
+      <default>["&lt;Super&gt;g"]</default>
+      <summary>Toggle grayscale keybinding</summary>
+      <description>Keyboard shortcut to toggle grayscale effect</description>
+    </key>
+    
+    <!-- UI Settings -->
+    <key name="show-panel-indicator" type="b">
+      <default>true</default>
+      <summary>Show panel indicator</summary>
+      <description>Whether to display the grayscale toggle indicator in the top panel</description>
+    </key>
+    
+    <key name="show-notifications" type="b">
+      <default>true</default>
+      <summary>Show notifications</summary>
+      <description>Whether to display notifications when grayscale state changes</description>
+    </key>
+    
+    <!-- Animation Settings -->
+    <key name="animation-duration" type="d">
+      <default>0.3</default>
+      <range min="0.0" max="2.0"/>
+      <summary>Animation duration</summary>
+      <description>Duration of grayscale effect transitions in seconds</description>
+    </key>
+    
+    <!-- Performance Settings -->
+    <key name="effect-quality" type="s">
+      <choices>
+        <choice value="low"/>
+        <choice value="medium"/>
+        <choice value="high"/>
+      </choices>
+      <default>"high"</default>
+      <summary>Effect quality</summary>
+      <description>Quality level of the grayscale effect (affects performance)</description>
+    </key>
+    
+    <key name="performance-mode" type="b">
+      <default>false</default>
+      <summary>Performance mode</summary>
+      <description>Enable performance optimizations for lower-end hardware</description>
+    </key>
+    
+    <!-- Multi-Monitor Settings -->
+    <key name="per-monitor-mode" type="b">
+      <default>false</default>
+      <summary>Per-monitor mode</summary>
+      <description>Enable independent control for each monitor</description>
+    </key>
+    
+    <!-- Advanced Settings -->
+    <key name="auto-enable-on-startup" type="b">
+      <default>false</default>
+      <summary>Auto-enable on startup</summary>
+      <description>Automatically enable grayscale when the extension starts</description>
+    </key>
+    
+    <!-- State Persistence -->
+    <key name="global-enabled" type="b">
+      <default>false</default>
+      <summary>Global enabled state</summary>
+      <description>Persistent storage for global grayscale state</description>
+    </key>
+    
+    <key name="monitor-states" type="a{ib}">
+      <default>{}</default>
+      <summary>Monitor states</summary>
+      <description>Persistent storage for per-monitor grayscale states</description>
+    </key>
+    
+    <!-- Performance Metrics -->
+    <key name="performance-metrics" type="a{sv}">
+      <default>{}</default>
+      <summary>Performance metrics</summary>
+      <description>Runtime performance metrics for monitoring and optimization</description>
+    </key>
+    
+  </schema>
+  
+</schemalist>
