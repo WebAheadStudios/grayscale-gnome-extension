@@ -1,0 +1,60 @@
+{
+    "name": "grayscale-toggle",
+    "version": "1.0.0",
+    "description": "Toggle grayscale effect for monitors with keyboard shortcuts and panel indicator",
+    "type": "module",
+    "main": "src/extension.js",
+    "scripts": {
+        "build": "npm run build:dev",
+        "build:dev": "npm run clean && npm run copy-files && npm run compile-schemas",
+        "build:prod": "npm run clean && npm run compile && npm run copy-files && npm run compile-schemas && npm run package",
+        "compile": "tsc --noEmit",
+        "lint": "eslint src/ --max-warnings 999",
+        "lint:fix": "eslint src/ --fix",
+        "lint:strict": "eslint src/ --max-warnings 50",
+        "format": "prettier --write src/",
+        "format:check": "prettier --check src/",
+        "copy-files": "mkdir -p dist && cp -r src/* dist/",
+        "compile-schemas": "mkdir -p dist/schemas && cp schemas/*.gschema.xml dist/schemas/ && (glib-compile-schemas dist/schemas 2>/dev/null || echo 'Schema compilation will occur during installation')",
+        "package": "cd dist && zip -r ../dist/grayscale-toggle@luiz.dev.zip . -x '*.DS_Store' '*/.*'",
+        "install:extension": "npm run build:prod && gnome-extensions install dist/grayscale-toggle@luiz.dev.zip",
+        "clean": "rm -rf dist/ build/",
+        "dev": "npm run build:dev && npm run install:extension",
+        "validate": "npm run compile && npm run lint && npm run format:check",
+        "test:build": "npm run build:prod && echo 'Build test passed'",
+        "preinstall:extension": "mkdir -p dist"
+    },
+    "keywords": ["gnome", "gnome-shell", "extension", "grayscale", "accessibility", "toggle"],
+    "author": "Luiz",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/luiz/grayscale-gnome-extension"
+    },
+    "bugs": {
+        "url": "https://github.com/luiz/grayscale-gnome-extension/issues"
+    },
+    "homepage": "https://github.com/luiz/grayscale-gnome-extension#readme",
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "devDependencies": {
+        "@typescript-eslint/eslint-plugin": "^8.48.0",
+        "@typescript-eslint/parser": "^8.48.0",
+        "eslint": "^9.39.1",
+        "esbuild": "^0.25.10",
+        "typescript": "^5.9.2",
+        "prettier": "^3.7.3",
+        "chalk": "^5.3.0"
+    },
+    "dependencies": {
+        "@girs/gnome-shell": "^49.1.0"
+    },
+    "extensionMetadata": {
+        "uuid": "grayscale-toggle@luiz.dev",
+        "name": "Grayscale Toggle",
+        "shell-version": ["46"],
+        "gettext-domain": "grayscale-toggle",
+        "settings-schema": "org.gnome.shell.extensions.grayscale-toggle"
+    }
+}
