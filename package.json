@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "description": "Toggle grayscale effect for monitors with keyboard shortcuts and panel indicator",
     "type": "module",
-    "main": "src/extension.js",
+    "main": "src/extension.ts",
     "scripts": {
         "build": "npm run build:dev",
         "build:dev": "npm run clean && npm run copy-files && npm run compile-schemas",

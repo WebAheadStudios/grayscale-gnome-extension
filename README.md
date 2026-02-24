@@ -1,50 +1,74 @@
 # Grayscale Toggle - GNOME Shell Extension
 
-> **Transform your workflow**: A sophisticated GNOME Shell extension that provides system-wide grayscale toggle functionality for enhanced focus, reduced digital distraction, and improved productivity across multi-monitor setups.
+> **Transform your workflow**: A sophisticated GNOME Shell extension that
+> provides system-wide grayscale toggle functionality for enhanced focus,
+> reduced digital distraction, and improved productivity across multi-monitor
+> setups.
 
 ## 🎯 Project Overview
 
-This extension combines digital wellness principles with technical excellence to deliver a comprehensive grayscale solution for GNOME Desktop environments. Based on research from PMC studies showing that smartphone grayscale modes can reduce dopamine-driven usage and improve focus, this extension brings those benefits to your entire desktop experience.
+This extension combines digital wellness principles with technical excellence to
+deliver a comprehensive grayscale solution for GNOME Desktop environments. Based
+on research from PMC studies showing that smartphone grayscale modes can reduce
+dopamine-driven usage and improve focus, this extension brings those benefits to
+your entire desktop experience.
 
 **Key Benefits:**
 
-- **Enhanced Focus**: Reduce visual distractions and dopamine triggers from colorful interfaces
-- **Digital Wellness**: Scientific approach to managing screen time and attention
+- **Enhanced Focus**: Reduce visual distractions and dopamine triggers from
+  colorful interfaces
+- **Digital Wellness**: Scientific approach to managing screen time and
+  attention
 - **Productivity Boost**: Maintain concentration during focused work sessions
-- **Multi-Monitor Excellence**: Professional-grade support for complex display setups
+- **Multi-Monitor Excellence**: Professional-grade support for complex display
+  setups
 - **Seamless Integration**: Native GNOME Shell UI patterns and modern design
 
 ## ✨ Features
 
 ### 🔧 Core Functionality (Phase 1)
 
-- **System-wide Grayscale Toggle**: Apply sophisticated desaturation effects across all displays
-- **Keyboard Shortcuts**: Quick toggle with customizable hotkeys (default: [`Super+G`])
+- **System-wide Grayscale Toggle**: Apply sophisticated desaturation effects
+  across all displays
+- **Keyboard Shortcuts**: Quick toggle with customizable hotkeys (default:
+  [`Super+G`])
 - **State Persistence**: Remembers preferences across sessions and reboots
-- **Hardware Acceleration**: Utilizes [`Clutter.DesaturateEffect`](src/effectManager.js) for smooth performance
+- **Hardware Acceleration**: Utilizes
+  [`Clutter.DesaturateEffect`](src/effectManager.ts) for smooth performance
 - **Robust Settings**: Comprehensive configuration via GSettings schema
 
 ### 🖥️ Multi-Monitor Support (Phase 2)
 
 - **Advanced Monitor Detection**: Intelligent display discovery and management
-- **Real-time Hotplug Handling**: Seamless adaptation to display changes during runtime
-- **Per-Monitor Control**: Independent grayscale state for each connected display
-- **Dynamic Configuration**: Automatic adaptation to resolution changes and display reordering
-- **Professional Display Management**: Support for complex multi-monitor workflows
+- **Real-time Hotplug Handling**: Seamless adaptation to display changes during
+  runtime
+- **Per-Monitor Control**: Independent grayscale state for each connected
+  display
+- **Dynamic Configuration**: Automatic adaptation to resolution changes and
+  display reordering
+- **Professional Display Management**: Support for complex multi-monitor
+  workflows
 
 ### 🎨 Modern UI Integration (Phase 3)
 
-- **Quick Settings Integration**: Native toggle in GNOME Shell 46+ Quick Settings panel
-- **Panel Indicator**: Elegant top panel integration with comprehensive status display
-- **Advanced Preferences**: Full-featured configuration dialog with real-time preview
-- **Notification System**: Optional status notifications with customizable timeout
-- **Animation Controls**: Smooth transitions with configurable duration and quality
+- **Quick Settings Integration**: Native toggle in GNOME Shell 46+ Quick
+  Settings panel
+- **Panel Indicator**: Elegant top panel integration with comprehensive status
+  display
+- **Advanced Preferences**: Full-featured configuration dialog with real-time
+  preview
+- **Notification System**: Optional status notifications with customizable
+  timeout
+- **Animation Controls**: Smooth transitions with configurable duration and
+  quality
 
 ### ⚡ Performance & Customization
 
-- **Effect Quality Settings**: Multiple quality levels for different hardware capabilities
+- **Effect Quality Settings**: Multiple quality levels for different hardware
+  capabilities
 - **Performance Mode**: Optimizations for lower-end systems
-- **Intensity Control**: Adjustable grayscale intensity from subtle to complete desaturation
+- **Intensity Control**: Adjustable grayscale intensity from subtle to complete
+  desaturation
 - **Animation Tuning**: Configurable transition timing and easing curves
 - **Resource Efficiency**: Minimal CPU and memory footprint
 
@@ -52,9 +76,12 @@ This extension combines digital wellness principles with technical excellence to
 
 This extension implements evidence-based digital wellness principles:
 
-> _"Smartphone features like grayscale displays can reduce the reward value of the device and may help some users better self-regulate their usage."_ - PMC Digital Wellness Research
+> _"Smartphone features like grayscale displays can reduce the reward value of
+> the device and may help some users better self-regulate their usage."_ - PMC
+> Digital Wellness Research
 
-The extension translates these mobile device insights to desktop computing, enabling:
+The extension translates these mobile device insights to desktop computing,
+enabling:
 
 - Reduced dopamine stimulation from colorful interfaces
 - Improved focus during concentrated work sessions
@@ -79,7 +106,8 @@ The extension translates these mobile device insights to desktop computing, enab
 **Development Dependencies:**
 
 - [`gjs`](https://gitlab.gnome.org/GNOME/gjs) runtime (1.80.2+)
-- [`gobject-introspection`](https://gitlab.gnome.org/GNOME/gobject-introspection) libraries
+- [`gobject-introspection`](https://gitlab.gnome.org/GNOME/gobject-introspection)
+  libraries
 - [`glib`](https://gitlab.gnome.org/GNOME/glib) development tools
 
 ## 🚀 Quick Installation
@@ -184,10 +212,14 @@ graph TB
 **Component Responsibilities:**
 
 - **[`Extension`](src/extension.js)**: Main lifecycle and component coordination
-- **[`StateManager`](src/stateManager.js)**: Settings persistence and state synchronization
-- **[`EffectManager`](src/effectManager.js)**: Hardware-accelerated effect application
-- **[`MonitorManager`](src/monitorManager.js)**: Multi-monitor detection and hotplug handling
-- **[`UIController`](src/uiController.js)**: Panel indicator and Quick Settings integration
+- **[`StateManager`](src/stateManager.js)**: Settings persistence and state
+  synchronization
+- **[`EffectManager`](src/effectManager.js)**: Hardware-accelerated effect
+  application
+- **[`MonitorManager`](src/monitorManager.js)**: Multi-monitor detection and
+  hotplug handling
+- **[`UIController`](src/uiController.js)**: Panel indicator and Quick Settings
+  integration
 
 ## 🛠️ Development
 
@@ -240,9 +272,11 @@ gnome-extensions info grayscale-toggle@luiz.dev
 
 1. Fork the repository
 2. Create feature branch: `git checkout -b feature/enhanced-animation-system`
-3. Implement changes following [GNOME JavaScript Guidelines](https://gitlab.gnome.org/GNOME/gjs/-/blob/HEAD/doc/Coding_Style.md)
+3. Implement changes following
+   [GNOME JavaScript Guidelines](https://gitlab.gnome.org/GNOME/gjs/-/blob/HEAD/doc/Coding_Style.md)
 4. Add tests and documentation
-5. Commit using [Conventional Commits](https://www.conventionalcommits.org/): `feat: add animation easing options`
+5. Commit using [Conventional Commits](https://www.conventionalcommits.org/):
+   `feat: add animation easing options`
 6. Submit pull request with detailed description
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for complete development guidelines.
@@ -297,7 +331,8 @@ grayscale-gnome-extension/
 
 ### Advanced Configuration
 
-- **GSettings CLI**: `gsettings set org.gnome.shell.extensions.grayscale-toggle <key> <value>`
+- **GSettings CLI**:
+  `gsettings set org.gnome.shell.extensions.grayscale-toggle <key> <value>`
 - **dconf Editor**: Navigate to `/org/gnome/shell/extensions/grayscale-toggle/`
 - **Preferences UI**: Extensions app → Grayscale Toggle → Preferences
 
@@ -357,11 +392,14 @@ xrandr --listmonitors
 gnome-extensions prefs grayscale-toggle@luiz.dev
 ```
 
-See [`docs/installation-guide.md`](docs/installation-guide.md) for comprehensive troubleshooting procedures.
+See [`docs/installation-guide.md`](docs/installation-guide.md) for comprehensive
+troubleshooting procedures.
 
 ## 📄 License
 
-This project is licensed under the **GNU General Public License v3.0** ([GPL-3.0](LICENSE)) - the same license used by GNOME Shell and other GNOME ecosystem projects.
+This project is licensed under the **GNU General Public License v3.0**
+([GPL-3.0](LICENSE)) - the same license used by GNOME Shell and other GNOME
+ecosystem projects.
 
 **Key License Points:**
 
@@ -375,13 +413,17 @@ This project is licensed under the **GNU General Public License v3.0** ([GPL-3.0
 ### Getting Help
 
 - **Documentation**: Complete guides in [`docs/`](docs/) directory
-- **Issues**: Report bugs and feature requests via [GitHub Issues](https://github.com/luiz/grayscale-gnome-extension/issues)
-- **Discussions**: Community support via [GitHub Discussions](https://github.com/luiz/grayscale-gnome-extension/discussions)
-- **IRC**: `#gnome-extensions` on [irc.gnome.org](https://wiki.gnome.org/Community/GettingInTouch/IRC)
+- **Issues**: Report bugs and feature requests via
+  [GitHub Issues](https://github.com/luiz/grayscale-gnome-extension/issues)
+- **Discussions**: Community support via
+  [GitHub Discussions](https://github.com/luiz/grayscale-gnome-extension/discussions)
+- **IRC**: `#gnome-extensions` on
+  [irc.gnome.org](https://wiki.gnome.org/Community/GettingInTouch/IRC)
 
 ### Contributing
 
-We welcome contributions from the community! See our [contributing guidelines](CONTRIBUTING.md) for:
+We welcome contributions from the community! See our
+[contributing guidelines](CONTRIBUTING.md) for:
 
 - 🐛 Bug fixes and improvements
 - ✨ New feature development
@@ -399,8 +441,12 @@ This extension builds upon the excellent foundation provided by:
 - **Digital Wellness Research** - Scientific basis for grayscale benefits
 - **GNOME Community** - Development guidance and best practices
 
-Special thanks to early testers and contributors who helped refine the multi-monitor support and user interface design.
+Special thanks to early testers and contributors who helped refine the
+multi-monitor support and user interface design.
 
 ---
 
-**Ready to enhance your digital wellness and productivity?** [Install now](#-quick-installation) and experience the benefits of a distraction-free computing environment with professional-grade multi-monitor support.
+**Ready to enhance your digital wellness and productivity?**
+[Install now](#-quick-installation) and experience the benefits of a
+distraction-free computing environment with professional-grade multi-monitor
+support.
