@@ -41,6 +41,7 @@
         "noEmit": true
     },
     "include": [
+        "src/ambient.d.ts",
         "src/**/*"
     ],
     "exclude": [
