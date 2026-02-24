@@ -1,0 +1,303 @@
+name: Main Branch Quality Assurance
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: main-qa
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write
+  security-events: write
+
+jobs:
+  comprehensive-testing:
+    name: Comprehensive Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for analysis
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run comprehensive validation
+        run: npm run validate:full
+
+      - name: Run performance tests
+        run: |
+          echo "Running performance benchmarks..."
+          npm run test -- --testNamePattern="Performance"
+
+      - name: Generate test coverage
+        run: npm run test:coverage
+
+      # Codecov removed - paid service
+
+  security-analysis:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # CodeQL removed - paid security analysis service
+
+      - name: Run npm audit
+        run: |
+          echo "Running security audit..."
+          npm audit --audit-level=high --json > security-audit.json || true
+
+          # Check if any high/critical vulnerabilities
+          HIGH_VULNS=$(jq -r '.metadata.vulnerabilities.high // 0' security-audit.json)
+          CRITICAL_VULNS=$(jq -r '.metadata.vulnerabilities.critical // 0' security-audit.json)
+
+          echo "High vulnerabilities: $HIGH_VULNS"
+          echo "Critical vulnerabilities: $CRITICAL_VULNS"
+
+          if [ "$HIGH_VULNS" -gt 0 ] || [ "$CRITICAL_VULNS" -gt 0 ]; then
+            echo "⚠️ Security vulnerabilities detected!"
+            exit 1
+          fi
+
+      - name: Upload security results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit
+          path: security-audit.json
+          retention-days: 90
+
+  performance-monitoring:
+    name: Performance Monitoring
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build extension
+        run: npm run build:prod
+
+      - name: Measure build performance
+        id: build-perf
+        run: |
+          echo "Measuring build performance..."
+
+          # Measure build time
+          BUILD_START=$(date +%s%N)
+          npm run build:prod
+          BUILD_END=$(date +%s%N)
+
+          BUILD_TIME=$(( (BUILD_END - BUILD_START) / 1000000 ))  # Convert to milliseconds
+          echo "build_time_ms=$BUILD_TIME" >> $GITHUB_OUTPUT
+
+          # Measure package size
+          if [ -f "dist/grayscale-toggle@webaheadstudios.com.zip" ]; then
+            PACKAGE_SIZE=$(stat -c%s "dist/grayscale-toggle@webaheadstudios.com.zip")
+            echo "package_size_bytes=$PACKAGE_SIZE" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run performance tests with benchmarking
+        run: |
+          echo "Running performance benchmarks..."
+          npm run test -- --testNamePattern="Performance" --verbose
+
+      - name: Analyze bundle size
+        run: |
+          echo "## 📊 Performance Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          BUILD_TIME="${{ steps.build-perf.outputs.build_time_ms }}"
+          PACKAGE_SIZE="${{ steps.build-perf.outputs.package_size_bytes }}"
+
+          echo "- **Build time**: ${BUILD_TIME}ms" >> $GITHUB_STEP_SUMMARY
+
+          if [ -n "$PACKAGE_SIZE" ]; then
+            PACKAGE_SIZE_KB=$((PACKAGE_SIZE / 1024))
+            echo "- **Package size**: ${PACKAGE_SIZE_KB}KB" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Extension file analysis
+          if [ -d "dist" ]; then
+            TOTAL_FILES=$(find dist -type f | wc -l)
+            echo "- **Extension files**: $TOTAL_FILES" >> $GITHUB_STEP_SUMMARY
+
+            # TypeScript compiled files
+            TS_FILES=$(find dist -name "*.js" | wc -l)
+            echo "- **JavaScript files**: $TS_FILES" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Store performance baseline
+        run: |
+          # Store current performance metrics for comparison
+          mkdir -p .github/performance
+
+          cat > .github/performance/baseline.json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit": "${{ github.sha }}",
+            "build_time_ms": ${{ steps.build-perf.outputs.build_time_ms }},
+            "package_size_bytes": ${{ steps.build-perf.outputs.package_size_bytes }}
+          }
+          EOF
+
+      - name: Upload performance data
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-baseline
+          path: .github/performance/baseline.json
+          retention-days: 90
+
+  code-quality-analysis:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint with reporting
+        run: |
+          npx eslint src/ --format json --output-file eslint-report.json || true
+
+          # Generate summary
+          echo "## 🔍 Code Quality Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f eslint-report.json ]; then
+            ERRORS=$(jq '[.[] | .errorCount] | add // 0' eslint-report.json)
+            WARNINGS=$(jq '[.[] | .warningCount] | add // 0' eslint-report.json)
+
+            echo "- **ESLint errors**: $ERRORS" >> $GITHUB_STEP_SUMMARY
+            echo "- **ESLint warnings**: $WARNINGS" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$ERRORS" -gt 0 ]; then
+              echo "❌ ESLint errors must be fixed" >> $GITHUB_STEP_SUMMARY
+              exit 1
+            fi
+          fi
+
+      - name: Analyze code complexity
+        run: |
+          echo "Analyzing code complexity..."
+
+          # Simple complexity analysis
+          echo "### Code Metrics" >> $GITHUB_STEP_SUMMARY
+
+          # Count lines of code
+          TS_LINES=$(find src -name "*.ts" -not -path "*/tests/*" | xargs wc -l | tail -n1 | awk '{print $1}')
+          TEST_LINES=$(find src -name "*.test.ts" -o -name "*.spec.ts" | xargs wc -l 2>/dev/null | tail -n1 | awk '{print $1}' || echo "0")
+
+          echo "- **Source lines**: $TS_LINES" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test lines**: $TEST_LINES" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$TS_LINES" -gt 0 ]; then
+            TEST_RATIO=$((TEST_LINES * 100 / TS_LINES))
+            echo "- **Test to source ratio**: ${TEST_RATIO}%" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload quality reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: |
+            eslint-report.json
+          retention-days: 30
+
+  deployment-readiness:
+    name: Deployment Readiness
+    runs-on: ubuntu-latest
+    needs: [comprehensive-testing, security-analysis, performance-monitoring, code-quality-analysis]
+    if: always()
+    steps:
+      - name: Check deployment readiness
+        run: |
+          echo "## 🚀 Deployment Readiness Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check job results
+          COMPREHENSIVE_TESTING="${{ needs.comprehensive-testing.result }}"
+          SECURITY_ANALYSIS="${{ needs.security-analysis.result }}"
+          PERFORMANCE_MONITORING="${{ needs.performance-monitoring.result }}"
+          CODE_QUALITY="${{ needs.code-quality-analysis.result }}"
+
+          echo "### Quality Gates Status" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$COMPREHENSIVE_TESTING" = "success" ]; then
+            echo "- ✅ Comprehensive Testing" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ Comprehensive Testing" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$SECURITY_ANALYSIS" = "success" ]; then
+            echo "- ✅ Security Analysis" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ Security Analysis" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$PERFORMANCE_MONITORING" = "success" ]; then
+            echo "- ✅ Performance Monitoring" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ Performance Monitoring" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$CODE_QUALITY" = "success" ]; then
+            echo "- ✅ Code Quality" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ Code Quality" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Overall status
+          if [ "$COMPREHENSIVE_TESTING" = "success" ] &&
+             [ "$SECURITY_ANALYSIS" = "success" ] &&
+             [ "$PERFORMANCE_MONITORING" = "success" ] &&
+             [ "$CODE_QUALITY" = "success" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ✅ Ready for Release" >> $GITHUB_STEP_SUMMARY
+            echo "All quality gates have passed. The extension is ready for release." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ❌ Not Ready for Release" >> $GITHUB_STEP_SUMMARY
+            echo "Some quality gates have failed. Please address the issues before releasing." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

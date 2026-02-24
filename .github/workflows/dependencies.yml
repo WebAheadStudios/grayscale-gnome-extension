@@ -1,0 +1,298 @@
+name: Dependency Management
+
+on:
+  schedule:
+    # Run weekly on Mondays at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      update_type:
+        description: 'Type of dependency updates'
+        required: false
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+
+concurrency:
+  group: dependencies
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run security audit
+        id: audit
+        run: |
+          echo "Running npm audit..."
+          if npm audit --audit-level=moderate --json > audit-results.json; then
+            echo "audit_status=passed" >> $GITHUB_OUTPUT
+            echo "No security vulnerabilities found"
+          else
+            echo "audit_status=failed" >> $GITHUB_OUTPUT
+            echo "Security vulnerabilities detected"
+          fi
+
+      - name: Parse audit results
+        if: steps.audit.outputs.audit_status == 'failed'
+        run: |
+          echo "## Security Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f audit-results.json ]; then
+            # Extract vulnerability count
+            HIGH_COUNT=$(jq -r '.metadata.vulnerabilities.high // 0' audit-results.json)
+            MODERATE_COUNT=$(jq -r '.metadata.vulnerabilities.moderate // 0' audit-results.json)
+
+            echo "- **High severity**: $HIGH_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "- **Moderate severity**: $MODERATE_COUNT" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`npm audit fix\` to automatically fix issues." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-results
+          path: audit-results.json
+          retention-days: 30
+
+  dependency-updates:
+    name: Check for Updates
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for outdated packages
+        id: updates
+        run: |
+          echo "Checking for outdated packages..."
+          npm outdated --json > outdated.json || true
+
+          if [ -s outdated.json ] && [ "$(cat outdated.json)" != "{}" ]; then
+            echo "updates_available=true" >> $GITHUB_OUTPUT
+            echo "Found outdated packages"
+          else
+            echo "updates_available=false" >> $GITHUB_OUTPUT
+            echo "All packages are up to date"
+          fi
+
+      - name: Create update strategy
+        if: steps.updates.outputs.updates_available == 'true'
+        id: strategy
+        run: |
+          UPDATE_TYPE="${{ github.event.inputs.update_type || 'patch' }}"
+          echo "update_type=$UPDATE_TYPE" >> $GITHUB_OUTPUT
+
+          echo "## Dependency Update Strategy" >> $GITHUB_STEP_SUMMARY
+          echo "- **Update type**: $UPDATE_TYPE" >> $GITHUB_STEP_SUMMARY
+          echo "- **Automated**: Yes" >> $GITHUB_STEP_SUMMARY
+          echo "- **Testing**: Full test suite" >> $GITHUB_STEP_SUMMARY
+
+      - name: Update dependencies
+        if: steps.updates.outputs.updates_available == 'true'
+        run: |
+          UPDATE_TYPE="${{ steps.strategy.outputs.update_type }}"
+
+          case $UPDATE_TYPE in
+            "patch")
+              npm update --save
+              ;;
+            "minor")
+              npx npm-check-updates -u --target minor
+              npm install
+              ;;
+            "major")
+              npx npm-check-updates -u
+              npm install
+              ;;
+          esac
+
+      - name: Run validation after updates
+        if: steps.updates.outputs.updates_available == 'true'
+        run: |
+          echo "Running validation after dependency updates..."
+          npm run validate:full
+
+      - name: Create Pull Request
+        if: steps.updates.outputs.updates_available == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore(deps): update dependencies (${{ steps.strategy.outputs.update_type }})'
+          title: 'chore(deps): Update dependencies (${{ steps.strategy.outputs.update_type }})'
+          body: |
+            ## Dependency Updates
+
+            This PR updates dependencies automatically.
+
+            **Update type**: ${{ steps.strategy.outputs.update_type }}
+            **Trigger**: ${{ github.event_name }}
+
+            ### Changes
+            - Updated outdated packages to latest ${{ steps.strategy.outputs.update_type }} versions
+            - All tests and quality checks passing
+
+            ### Validation
+            - ✅ TypeScript compilation
+            - ✅ ESLint and Prettier checks
+            - ✅ Test suite
+            - ✅ Build process
+
+            **Please review the changes before merging.**
+          branch: automated/dependency-updates-${{ steps.strategy.outputs.update_type }}
+          delete-branch: true
+
+  license-check:
+    name: License Compatibility Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - name: Install license checker
+        run: npm install -g license-checker
+
+      - name: Check licenses
+        id: license-check
+        run: |
+          echo "Checking package licenses..."
+          license-checker --json --excludePrivatePackages > licenses.json
+
+          # Check for problematic licenses
+          PROBLEMATIC_LICENSES=("GPL-1.0" "GPL-2.0" "GPL-3.0" "AGPL-1.0" "AGPL-3.0")
+
+          HAS_ISSUES=false
+          for license in "${PROBLEMATIC_LICENSES[@]}"; do
+            if jq -r '.[] | .licenses' licenses.json | grep -q "$license"; then
+              echo "Found problematic license: $license"
+              HAS_ISSUES=true
+            fi
+          done
+
+          if [ "$HAS_ISSUES" = true ]; then
+            echo "license_issues=true" >> $GITHUB_OUTPUT
+          else
+            echo "license_issues=false" >> $GITHUB_OUTPUT
+            echo "All licenses are compatible"
+          fi
+
+      - name: Upload license report
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: licenses.json
+          retention-days: 30
+
+      - name: Comment on PR if issues found
+        if: steps.license-check.outputs.license_issues == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ⚠️ License Compatibility Issues
+
+            This PR introduces dependencies with potentially incompatible licenses.
+            Please review the license report artifact and ensure compliance with the project's MIT license.
+
+            **Action needed**: Review and resolve license compatibility issues before merging.`
+            });
+
+  dependency-analysis:
+    name: Dependency Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Analyze bundle size
+        run: |
+          echo "## Dependency Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Count dependencies
+          DEV_DEPS=$(jq -r '.devDependencies | keys | length' package.json)
+          PROD_DEPS=$(jq -r '.dependencies | keys | length' package.json)
+
+          echo "- **Production dependencies**: $PROD_DEPS" >> $GITHUB_STEP_SUMMARY
+          echo "- **Development dependencies**: $DEV_DEPS" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total**: $((DEV_DEPS + PROD_DEPS))" >> $GITHUB_STEP_SUMMARY
+
+          # Analyze node_modules size
+          if [ -d node_modules ]; then
+            SIZE=$(du -sh node_modules | cut -f1)
+            echo "- **Node modules size**: $SIZE" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check for unused dependencies
+        run: |
+          echo "Checking for unused dependencies..."
+
+          # Simple check for imports in TypeScript files
+          echo "### Potentially Unused Dependencies" >> $GITHUB_STEP_SUMMARY
+
+          for dep in $(jq -r '.dependencies // {} | keys[]' package.json); do
+            if ! grep -r "from ['\"]$dep['\"]" src/ > /dev/null 2>&1 && \
+               ! grep -r "require(['\"]$dep['\"])" src/ > /dev/null 2>&1 && \
+               ! grep -r "import ['\"]$dep['\"]" src/ > /dev/null 2>&1; then
+              echo "- $dep (not found in source files)" >> $GITHUB_STEP_SUMMARY
+            fi
+          done

@@ -1,0 +1,33 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Pre-commit hook for linting, formatting, and validation
+echo "🔍 Running pre-commit checks..."
+
+# Run lint-staged for changed files
+npx lint-staged
+
+# Run TypeScript compilation check
+echo "🏗️  Checking TypeScript compilation..."
+npm run compile
+
+# Run tests for changed components (if any test files changed)
+if git diff --cached --name-only | grep -E "\.(test|spec)\.ts$" > /dev/null; then
+  echo "🧪 Running tests..."
+  npm run test:ci
+fi
+
+# Validate metadata if it was changed
+if git diff --cached --name-only | grep "src/metadata.json" > /dev/null; then
+  echo "📋 Validating extension metadata..."
+  node scripts/validate-metadata.js
+fi
+
+# Check for TODO comments in staged files
+if git diff --cached --name-only | xargs grep -l "TODO\|FIXME" 2>/dev/null; then
+  echo "⚠️  Warning: Found TODO/FIXME comments in staged files:"
+  git diff --cached --name-only | xargs grep -n "TODO\|FIXME" 2>/dev/null || true
+  echo "Consider resolving these before committing."
+fi
+
+echo "✅ Pre-commit checks passed!"
