@@ -20,6 +20,9 @@ export interface MonitorInfo {
     manufacturer?: string;
     model?: string;
     serial?: string;
+    active?: boolean;
+    actor?: any; // Monitor actor from layout manager
+    lastSeen?: number;
 }
 
 // Monitor change event data
@@ -44,6 +47,6 @@ export interface MonitorManager {
 
 // Monitor detection interface for different backends
 export interface MonitorDetection {
-    detectMonitors(): Promise<MonitorInfo[]>;
+    detectMonitors(): Promise<{ monitors: MonitorInfo[]; changes: any }>;
     watchChanges(callback: (monitors: MonitorInfo[]) => void): () => void;
 }
