@@ -438,8 +438,6 @@ grayscale-gnome-extension/
 │   ├── quickSettingsIntegration.ts # Quick Settings
 │   ├── settingsController.ts     # Configuration
 │   └── prefs.ts                  # Preferences dialog
-├── src-backup/                   # JavaScript originals
-│   └── [preserved original files]
 ├── .github/                      # GitHub automation
 │   ├── workflows/                # CI/CD pipelines
 │   │   ├── ci.yml               # Pull request validation

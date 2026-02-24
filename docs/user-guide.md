@@ -544,4 +544,4 @@ gsettings reset org.gnome.shell.extensions.grayscale-toggle grayscale-enabled
 
 ---
 
-**Need more help?** Check the [troubleshooting section](#-troubleshooting) or visit our [GitHub Issues](https://github.com/luiz/grayscale-gnome-extension/issues) for community support.
+**Need more help?** Check the [troubleshooting section](#-troubleshooting) or visit our [GitHub Issues](https://github.com/webaheadstudios/grayscale-gnome-extension/issues) for community support.

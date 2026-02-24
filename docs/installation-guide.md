@@ -101,7 +101,7 @@
    # Check if extension is installed and enabled
    gnome-extensions list --enabled | grep grayscale-toggle
 
-   # Should output: grayscale-toggle@luiz.dev
+   # Should output: grayscale-toggle@webaheadstudios.com
    ```
 
 ### Method 2: Using GNOME Extensions App
@@ -368,7 +368,7 @@ cd ~/Downloads/grayscale-extension
 
 # Download latest release
 curl -L -o grayscale-toggle.zip \
-    https://github.com/luiz/grayscale-gnome-extension/archive/main.zip
+    https://github.com/webaheadstudios/grayscale-gnome-extension/archive/main.zip
 
 # Extract archive
 unzip grayscale-toggle.zip
@@ -378,7 +378,7 @@ unzip grayscale-toggle.zip
 
 ```bash
 # Clone the repository
-git clone https://github.com/luiz/grayscale-gnome-extension.git
+git clone https://github.com/webaheadstudios/grayscale-gnome-extension.git
 cd grayscale-gnome-extension
 ```
 
@@ -386,13 +386,13 @@ cd grayscale-gnome-extension
 
 ```bash
 # Create extension directory
-mkdir -p ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev
+mkdir -p ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com
 
 # Copy source files
-cp -r src/* ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev/
+cp -r src/* ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com/
 
 # Verify files copied correctly
-ls -la ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev/
+ls -la ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com/
 # Should show: extension.js, metadata.json, prefs.js, and other source files
 ```
 
@@ -415,7 +415,7 @@ gsettings list-schemas | grep grayscale-toggle
 
 ```bash
 # Enable the extension
-gnome-extensions enable grayscale-toggle@luiz.dev
+gnome-extensions enable grayscale-toggle@webaheadstudios.com
 
 # Verify it's enabled
 gnome-extensions list --enabled | grep grayscale-toggle
@@ -606,7 +606,7 @@ gsettings get org.gnome.shell.extensions.grayscale-toggle grayscale-enabled
 
 ```bash
 # Open preferences dialog
-gnome-extensions prefs grayscale-toggle@luiz.dev
+gnome-extensions prefs grayscale-toggle@webaheadstudios.com
 ```
 
 **Method C: Panel Menu**

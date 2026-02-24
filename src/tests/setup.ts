@@ -202,7 +202,7 @@ global.imports = {
         extensionUtils: {
             getCurrentExtension: jest.fn(() => ({
                 metadata: {
-                    uuid: 'grayscale-toggle@luiz.dev',
+                    uuid: 'grayscale-toggle@webaheadstudios.com',
                     name: 'Grayscale Toggle',
                     'shell-version': ['46'],
                 },

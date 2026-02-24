@@ -24,14 +24,14 @@
    - [docs/user-guide.md](docs/user-guide.md) - User experience and functionality
    - [docs/developer-guide.md](docs/developer-guide.md) - Technical architecture
 
-2. **Check Existing Issues**: Browse [GitHub Issues](https://github.com/luiz/grayscale-gnome-extension/issues) to see:
+2. **Check Existing Issues**: Browse [GitHub Issues](https://github.com/webaheadstudios/grayscale-gnome-extension/issues) to see:
    - Current bug reports and feature requests
    - Issues labeled `good-first-issue` for newcomers
    - Issues labeled `help-wanted` for community contributions
 
 3. **Join the Discussion**: Engage with the community:
    - Comment on existing issues you're interested in
-   - Ask questions in [GitHub Discussions](https://github.com/luiz/grayscale-gnome-extension/discussions)
+   - Ask questions in [GitHub Discussions](https://github.com/webaheadstudios/grayscale-gnome-extension/discussions)
    - Join `#gnome-extensions` on [irc.gnome.org](https://wiki.gnome.org/Community/GettingInTouch/IRC)
 
 ### Prerequisites
@@ -83,7 +83,7 @@
    ```bash
    # Create symlink for development
    mkdir -p ~/.local/share/gnome-shell/extensions
-   ln -sf "$(pwd)/src" ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev
+   ln -sf "$(pwd)/src" ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com
 
    # Install schema
    sudo cp schemas/org.gnome.shell.extensions.grayscale-toggle.gschema.xml \
@@ -91,7 +91,7 @@
    sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
 
    # Enable extension
-   gnome-extensions enable grayscale-toggle@luiz.dev
+   gnome-extensions enable grayscale-toggle@webaheadstudios.com
    ```
 
 4. **Development Tools**:
@@ -116,8 +116,8 @@ journalctl -f -o cat /usr/bin/gnome-shell | grep -i grayscale &
 # Make changes to source files...
 
 # Quick extension restart (preserves state)
-gnome-extensions disable grayscale-toggle@luiz.dev && \
-gnome-extensions enable grayscale-toggle@luiz.dev
+gnome-extensions disable grayscale-toggle@webaheadstudios.com && \
+gnome-extensions enable grayscale-toggle@webaheadstudios.com
 
 # Full shell restart (X11 only - Alt+F2, type 'r', Enter)
 ```
@@ -135,7 +135,7 @@ eslint src/**/*.js
 glib-compile-schemas --strict schemas/
 
 # Extension validation
-gnome-extensions info grayscale-toggle@luiz.dev
+gnome-extensions info grayscale-toggle@webaheadstudios.com
 ```
 
 ---
@@ -287,8 +287,8 @@ eslint src/**/*.js        # Lint check
 npm test                  # Run tests (if available)
 
 # Test functionality
-gnome-extensions disable grayscale-toggle@luiz.dev
-gnome-extensions enable grayscale-toggle@luiz.dev
+gnome-extensions disable grayscale-toggle@webaheadstudios.com
+gnome-extensions enable grayscale-toggle@webaheadstudios.com
 # Verify your changes work as expected
 ```
 
@@ -769,7 +769,7 @@ If you have any questions about contributing, don't hesitate to:
 - Comment on relevant issues
 - Join the IRC channel for real-time discussion
 
-**Project Repository**: https://github.com/luiz/grayscale-gnome-extension
+**Project Repository**: https://github.com/webaheadstudios/grayscale-gnome-extension
 **License**: GPL-3.0 (see [LICENSE](LICENSE))
 
 ---
