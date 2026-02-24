@@ -7,6 +7,11 @@
 declare global {
     // Additional GNOME Shell globals that might not be in @girs packages
     function logError(error: Error | any, prefix?: string): void;
+
+    // Performance API for GNOME Shell
+    const performance: {
+        now(): number;
+    };
 }
 
 export {};
