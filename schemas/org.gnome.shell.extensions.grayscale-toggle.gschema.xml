@@ -83,6 +83,56 @@
       <description>Persistent storage for per-monitor grayscale states</description>
     </key>
     
+    <!-- Multi-Monitor Configuration -->
+    <key name="monitor-exclusions" type="ai">
+      <default>[]</default>
+      <summary>Monitor exclusions</summary>
+      <description>List of monitor indices to exclude from grayscale effects</description>
+    </key>
+    
+    <key name="monitor-layout-config" type="a{sv}">
+      <default>{}</default>
+      <summary>Monitor layout configuration</summary>
+      <description>Configuration data for different monitor layouts and arrangements</description>
+    </key>
+    
+    <key name="primary-monitor-only" type="b">
+      <default>false</default>
+      <summary>Primary monitor only</summary>
+      <description>When enabled, effects only apply to the primary monitor</description>
+    </key>
+    
+    <key name="monitor-detection-sensitivity" type="s">
+      <choices>
+        <choice value="low"/>
+        <choice value="medium"/>
+        <choice value="high"/>
+      </choices>
+      <default>"medium"</default>
+      <summary>Monitor detection sensitivity</summary>
+      <description>Sensitivity level for monitor hotplug detection</description>
+    </key>
+    
+    <key name="auto-sync-monitors" type="b">
+      <default>true</default>
+      <summary>Auto-sync monitors</summary>
+      <description>Automatically sync monitor states when monitors are connected/disconnected</description>
+    </key>
+    
+    <!-- Advanced Multi-Monitor Settings -->
+    <key name="preserve-monitor-states" type="b">
+      <default>true</default>
+      <summary>Preserve monitor states</summary>
+      <description>Preserve individual monitor states across layout changes</description>
+    </key>
+    
+    <key name="hotplug-debounce-time" type="u">
+      <default>500</default>
+      <range min="100" max="2000"/>
+      <summary>Hotplug debounce time</summary>
+      <description>Time in milliseconds to wait before processing monitor hotplug events</description>
+    </key>
+    
     <!-- Performance Metrics -->
     <key name="performance-metrics" type="a{sv}">
       <default>{}</default>

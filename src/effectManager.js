@@ -42,9 +42,15 @@ export class EffectManager extends GObject.Object {
         try {
             // Get component references
             this._stateManager = this._extension.getComponent('StateManager');
+            this._monitorManager = this._extension.getComponent('MonitorManager');
             
             if (!this._stateManager) {
                 throw new Error('StateManager component not available');
+            }
+            
+            // MonitorManager is optional in Phase 1 but required for full Phase 2 functionality
+            if (!this._monitorManager) {
+                console.warn('[EffectManager] MonitorManager not available, using global mode only');
             }
             
             // Load animation settings
@@ -80,6 +86,7 @@ export class EffectManager extends GObject.Object {
         // Clear references
         this._effects.clear();
         this._stateManager = null;
+        this._monitorManager = null;
         this._initialized = false;
         
         console.log('[EffectManager] Destroyed successfully');
@@ -106,18 +113,39 @@ export class EffectManager extends GObject.Object {
         console.log(`[EffectManager] Applying global effect: ${enabled} (animated: ${animated})`);
         
         try {
-            // For Phase 1: Apply effect to global stage
-            const success = await this._applyStageEffect(enabled, {
-                animated,
-                duration, 
-                skipEvents
-            });
-            
-            if (!skipEvents) {
-                this.emit('effect-applied', -1, 'global', success);
+            if (this._isPerMonitorMode()) {
+                // Apply to all monitors individually
+                const monitors = this._monitorManager.getActiveMonitors();
+                const promises = monitors.map(monitor =>
+                    this.applyMonitorEffect(monitor.index, enabled, {
+                        animated,
+                        duration,
+                        skipEvents: true // Avoid duplicate events
+                    })
+                );
+                
+                const results = await Promise.all(promises);
+                const success = results.every(result => result);
+                
+                if (!skipEvents) {
+                    this.emit('effect-applied', -1, 'global', success);
+                }
+                
+                return success;
+            } else {
+                // Apply to global stage
+                const success = await this._applyStageEffect(enabled, {
+                    animated,
+                    duration,
+                    skipEvents
+                });
+                
+                if (!skipEvents) {
+                    this.emit('effect-applied', -1, 'global', success);
+                }
+                
+                return success;
             }
-            
-            return success;
             
         } catch (error) {
             if (!skipEvents) {
@@ -445,18 +473,37 @@ export class EffectManager extends GObject.Object {
                 return true;
             }
             
-            // For Phase 1: Apply to stage (per-monitor effects in Phase 2)
-            // Create desaturate effect
+            // Get monitor-specific actor
+            let targetActor = null;
+            
+            if (this._monitorManager) {
+                // Phase 2: True per-monitor effects
+                targetActor = this._monitorManager.getMonitorActor(monitorIndex);
+                
+                if (!targetActor) {
+                    console.warn(`[EffectManager] No actor found for monitor ${monitorIndex}, falling back to stage`);
+                    targetActor = Main.layoutManager.uiGroup;
+                }
+            } else {
+                // Phase 1: Global stage fallback
+                targetActor = Main.layoutManager.uiGroup;
+            }
+            
+            // Create monitor-specific desaturate effect
             const effect = new Clutter.DesaturateEffect({
                 factor: 0.0
             });
             
-            // Apply to global stage for now
-            const stage = Main.layoutManager.uiGroup;
-            stage.add_effect(effect);
+            // Apply effect to target actor
+            targetActor.add_effect(effect);
             
-            // Store effect reference
-            this._effects.set(key, effect);
+            // Store effect reference with actor
+            this._effects.set(key, {
+                effect,
+                actor: targetActor,
+                monitorIndex,
+                type: 'monitor'
+            });
             
             if (animated && duration > 0) {
                 effect.ease_property('factor', 1.0, {
@@ -489,30 +536,36 @@ export class EffectManager extends GObject.Object {
         
         try {
             const key = monitorIndex.toString();
-            const effect = this._effects.get(key);
+            const effectData = this._effects.get(key);
             
-            if (!effect) {
+            if (!effectData) {
                 console.log(`[EffectManager] No monitor ${monitorIndex} effect to remove`);
                 return true;
             }
             
-            const stage = Main.layoutManager.uiGroup;
+            // Handle both old and new effect storage formats
+            const effect = effectData.effect || effectData;
+            const actor = effectData.actor || Main.layoutManager.uiGroup;
             
             if (animated && duration > 0) {
                 effect.ease_property('factor', 0.0, {
                     duration: duration,
                     mode: this._animationSettings.easing,
                     onComplete: () => {
-                        stage.remove_effect(effect);
-                        this._effects.delete(key);
-                        
-                        if (!skipEvents) {
-                            this.emit('effect-removed', monitorIndex, 'monitor', true);
+                        try {
+                            actor.remove_effect(effect);
+                            this._effects.delete(key);
+                            
+                            if (!skipEvents) {
+                                this.emit('effect-removed', monitorIndex, 'monitor', true);
+                            }
+                        } catch (removeError) {
+                            console.warn(`[EffectManager] Failed to remove effect during cleanup:`, removeError);
                         }
                     }
                 });
             } else {
-                stage.remove_effect(effect);
+                actor.remove_effect(effect);
                 this._effects.delete(key);
                 
                 if (!skipEvents) {
@@ -527,6 +580,18 @@ export class EffectManager extends GObject.Object {
             console.error(`[EffectManager] Failed to remove monitor ${monitorIndex} effect:`, error);
             return false;
         }
+    }
+    
+    async removeMonitorEffect(monitorIndex, options = {}) {
+        return await this._removeMonitorEffect(monitorIndex, options);
+    }
+    
+    // Helper methods
+    _isPerMonitorMode() {
+        if (!this._stateManager || !this._monitorManager) {
+            return false;
+        }
+        return this._stateManager.getSetting('per-monitor-mode') === true;
     }
     
     // Operation Queue (for future use)

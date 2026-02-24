@@ -43,9 +43,15 @@ export class StateManager extends GObject.Object {
         
         try {
             this._settingsController = this._extension.getComponent('SettingsController');
+            this._monitorManager = this._extension.getComponent('MonitorManager');
             
             if (!this._settingsController) {
                 throw new Error('SettingsController component not available');
+            }
+            
+            // MonitorManager is optional but provides enhanced functionality
+            if (!this._monitorManager) {
+                console.warn('[StateManager] MonitorManager not available, using basic monitor support');
             }
             
             // Load initial state from settings
@@ -85,6 +91,7 @@ export class StateManager extends GObject.Object {
         // Clear data
         this._state = null;
         this._settingsController = null;
+        this._monitorManager = null;
         this._stateValidators.clear();
         this._transactionLog = [];
         this._performanceMetrics = null;
@@ -194,7 +201,7 @@ export class StateManager extends GObject.Object {
         
         // Initialize monitor state if needed
         if (!this._state.monitors[monitorIndex]) {
-            this._initializeMonitorState(monitorIndex);
+            await this.initializeMonitorState(monitorIndex);
         }
         
         const previousState = this._state.monitors[monitorIndex].enabled;
@@ -231,6 +238,159 @@ export class StateManager extends GObject.Object {
             states[index] = this._state.monitors[index].enabled;
         });
         return states;
+    }
+    
+    hasMonitorState(monitorIndex) {
+        return this._state.monitors.hasOwnProperty(monitorIndex);
+    }
+    
+    async initializeMonitorState(monitorIndex, initialState = false) {
+        if (!Number.isInteger(monitorIndex) || monitorIndex < 0) {
+            throw new Error(`Invalid monitor index: ${monitorIndex}`);
+        }
+        
+        // Don't overwrite existing state
+        if (this._state.monitors[monitorIndex]) {
+            return this._state.monitors[monitorIndex];
+        }
+        
+        this._state.monitors[monitorIndex] = {
+            enabled: initialState,
+            effectActive: false,
+            lastToggleTime: Date.now(),
+            geometry: null,
+            connector: null,
+            isPrimary: false
+        };
+        
+        // Try to get monitor info from MonitorManager if available
+        if (this._monitorManager) {
+            const monitorInfo = this._monitorManager.getMonitorInfo(monitorIndex);
+            if (monitorInfo) {
+                this._state.monitors[monitorIndex].geometry = monitorInfo.geometry;
+                this._state.monitors[monitorIndex].connector = monitorInfo.connector;
+                this._state.monitors[monitorIndex].isPrimary = monitorInfo.isPrimary;
+            }
+        }
+        
+        console.log(`[StateManager] Initialized monitor ${monitorIndex} state: ${initialState}`);
+        return this._state.monitors[monitorIndex];
+    }
+    
+    async syncMonitorStates() {
+        if (!this._monitorManager) {
+            console.warn('[StateManager] Cannot sync monitor states: MonitorManager not available');
+            return;
+        }
+        
+        const activeMonitors = this._monitorManager.getActiveMonitors();
+        const globalState = this.getGrayscaleState();
+        
+        // Initialize state for newly detected monitors
+        for (const monitor of activeMonitors) {
+            if (!this.hasMonitorState(monitor.index)) {
+                await this.initializeMonitorState(monitor.index, globalState);
+            } else {
+                // Update monitor details
+                const monitorState = this._state.monitors[monitor.index];
+                monitorState.geometry = monitor.geometry;
+                monitorState.connector = monitor.connector;
+                monitorState.isPrimary = monitor.isPrimary;
+            }
+        }
+        
+        // Mark inactive monitors (but don't delete their state)
+        const activeIndices = new Set(activeMonitors.map(m => m.index));
+        Object.keys(this._state.monitors).forEach(indexStr => {
+            const index = parseInt(indexStr);
+            if (!activeIndices.has(index)) {
+                // Monitor no longer active, but preserve state for when it returns
+                console.log(`[StateManager] Monitor ${index} is no longer active, preserving state`);
+            }
+        });
+        
+        console.log(`[StateManager] Synced states for ${activeMonitors.length} active monitors`);
+    }
+    
+    getPerMonitorMode() {
+        return this.getSetting('per-monitor-mode') === true;
+    }
+    
+    async migrateMonitorStates(oldLayout, newLayout) {
+        // Handle monitor layout changes by maintaining state continuity
+        // This is a complex operation that tries to match monitors across layout changes
+        
+        if (!oldLayout || !newLayout) {
+            console.warn('[StateManager] Cannot migrate monitor states: invalid layouts');
+            return;
+        }
+        
+        const migration = {
+            preserved: [],
+            moved: [],
+            added: [],
+            removed: []
+        };
+        
+        // Try to match monitors by connector first, then by properties
+        for (const newMonitor of newLayout) {
+            const matchingOld = oldLayout.find(old =>
+                old.connector === newMonitor.connector ||
+                (old.geometry.width === newMonitor.geometry.width &&
+                 old.geometry.height === newMonitor.geometry.height &&
+                 old.isPrimary === newMonitor.isPrimary)
+            );
+            
+            if (matchingOld) {
+                if (matchingOld.index !== newMonitor.index) {
+                    // Monitor moved to different index
+                    migration.moved.push({
+                        from: matchingOld.index,
+                        to: newMonitor.index,
+                        monitor: newMonitor
+                    });
+                } else {
+                    // Monitor stayed in same position
+                    migration.preserved.push(newMonitor);
+                }
+            } else {
+                // New monitor
+                migration.added.push(newMonitor);
+            }
+        }
+        
+        // Identify removed monitors
+        for (const oldMonitor of oldLayout) {
+            const stillExists = newLayout.find(newMon =>
+                newMon.connector === oldMonitor.connector
+            );
+            if (!stillExists) {
+                migration.removed.push(oldMonitor);
+            }
+        }
+        
+        // Apply migration
+        const statesToMove = {};
+        for (const { from, to } of migration.moved) {
+            if (this._state.monitors[from]) {
+                statesToMove[to] = { ...this._state.monitors[from] };
+                delete this._state.monitors[from];
+            }
+        }
+        
+        // Apply moved states
+        Object.entries(statesToMove).forEach(([index, state]) => {
+            this._state.monitors[index] = state;
+        });
+        
+        // Initialize new monitors
+        const globalState = this.getGrayscaleState();
+        for (const monitor of migration.added) {
+            await this.initializeMonitorState(monitor.index, globalState);
+        }
+        
+        console.log('[StateManager] Monitor state migration completed', migration);
+        return migration;
     }
     
     // Settings Integration
@@ -325,11 +485,10 @@ export class StateManager extends GObject.Object {
             
             // Load monitor states
             const monitorStates = this._settingsController.getSetting('monitor-states') || {};
-            Object.keys(monitorStates).forEach(index => {
+            for (const index of Object.keys(monitorStates)) {
                 const monitorIndex = parseInt(index);
-                this._initializeMonitorState(monitorIndex);
-                this._state.monitors[monitorIndex].enabled = monitorStates[index];
-            });
+                await this.initializeMonitorState(monitorIndex, monitorStates[index]);
+            }
             
             // Load all settings into cache
             await this._loadSettingsCache();
@@ -388,29 +547,21 @@ export class StateManager extends GObject.Object {
         };
     }
     
-    _initializeMonitorState(monitorIndex) {
-        this._state.monitors[monitorIndex] = {
-            enabled: false,
-            effectActive: false,
-            lastToggleTime: 0,
-            geometry: null,
-            connector: null,
-            isPrimary: false
-        };
-    }
-    
     _setupValidators() {
         this._stateValidators.set('global.enabled', (value) => typeof value === 'boolean');
         this._stateValidators.set('monitor.enabled', (value) => typeof value === 'boolean');
-        this._stateValidators.set('settings.animationDuration', 
+        this._stateValidators.set('settings.animationDuration',
             (value) => typeof value === 'number' && value >= 0.0 && value <= 2.0
         );
-        this._stateValidators.set('settings.perMonitorMode', (value) => typeof value === 'boolean');
-        this._stateValidators.set('settings.keyboardShortcut', 
+        this._stateValidators.set('settings.per-monitor-mode', (value) => typeof value === 'boolean');
+        this._stateValidators.set('settings.keyboardShortcut',
             (value) => Array.isArray(value) && value.every(s => typeof s === 'string')
         );
         this._stateValidators.set('settings.effectQuality',
             (value) => ['low', 'medium', 'high'].includes(value)
+        );
+        this._stateValidators.set('settings.monitor-exclusions',
+            (value) => Array.isArray(value) && value.every(i => Number.isInteger(i) && i >= 0)
         );
     }
     

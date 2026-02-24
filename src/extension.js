@@ -8,6 +8,7 @@ import { SettingsController } from './settingsController.js';
 import { StateManager } from './stateManager.js';
 import { EffectManager } from './effectManager.js';
 import { UIController } from './uiController.js';
+import { MonitorManager } from './monitorManager.js';
 
 export default class GrayscaleExtension extends Extension {
     constructor(metadata) {
@@ -66,6 +67,7 @@ export default class GrayscaleExtension extends Extension {
         // Component initialization in dependency order
         const componentOrder = [
             { name: 'SettingsController', class: SettingsController },
+            { name: 'MonitorManager', class: MonitorManager },
             { name: 'StateManager', class: StateManager },
             { name: 'EffectManager', class: EffectManager },
             { name: 'UIController', class: UIController }
@@ -92,7 +94,7 @@ export default class GrayscaleExtension extends Extension {
     async _initializeComponentsAsync() {
         console.log(`[${this.metadata.name}] Initializing components asynchronously...`);
         
-        const initOrder = ['SettingsController', 'StateManager', 'EffectManager', 'UIController'];
+        const initOrder = ['SettingsController', 'MonitorManager', 'StateManager', 'EffectManager', 'UIController'];
         
         for (const componentName of initOrder) {
             const component = this._components.get(componentName);
@@ -114,7 +116,7 @@ export default class GrayscaleExtension extends Extension {
         console.log(`[${this.metadata.name}] Destroying components...`);
         
         // Destroy in reverse order
-        const destroyOrder = ['UIController', 'EffectManager', 'StateManager', 'SettingsController'];
+        const destroyOrder = ['UIController', 'EffectManager', 'StateManager', 'MonitorManager', 'SettingsController'];
         
         for (const componentName of destroyOrder) {
             const component = this._components.get(componentName);
@@ -155,6 +157,7 @@ export default class GrayscaleExtension extends Extension {
         const stateManager = this.getComponent('StateManager');
         const effectManager = this.getComponent('EffectManager');
         const uiController = this.getComponent('UIController');
+        const monitorManager = this.getComponent('MonitorManager');
         
         if (stateManager && effectManager) {
             // Connect state changes to effect applications
@@ -186,6 +189,47 @@ export default class GrayscaleExtension extends Extension {
             );
             this._signalConnections.push({ object: effectManager, id: effectAppliedId });
         }
+        
+        if (monitorManager && stateManager) {
+            // Connect monitor changes to state synchronization
+            const monitorAddedId = monitorManager.connect('monitor-added',
+                (manager, monitorData) => {
+                    console.log(`[${this.metadata.name}] Monitor added`);
+                    stateManager.syncMonitorStates().catch(error => {
+                        console.error(`[${this.metadata.name}] Failed to sync monitor states:`, error);
+                    });
+                }
+            );
+            this._signalConnections.push({ object: monitorManager, id: monitorAddedId });
+            
+            const monitorRemovedId = monitorManager.connect('monitor-removed',
+                (manager, monitorIndex) => {
+                    console.log(`[${this.metadata.name}] Monitor ${monitorIndex} removed`);
+                    // State manager will preserve the monitor state for when it returns
+                }
+            );
+            this._signalConnections.push({ object: monitorManager, id: monitorRemovedId });
+            
+            const monitorChangedId = monitorManager.connect('monitor-changed',
+                (manager, monitorIndex, changeData) => {
+                    console.log(`[${this.metadata.name}] Monitor ${monitorIndex} changed`);
+                    stateManager.syncMonitorStates().catch(error => {
+                        console.error(`[${this.metadata.name}] Failed to sync monitor states:`, error);
+                    });
+                }
+            );
+            this._signalConnections.push({ object: monitorManager, id: monitorChangedId });
+            
+            const monitorsReconfiguredId = monitorManager.connect('monitors-reconfigured',
+                (manager, reconfigData) => {
+                    console.log(`[${this.metadata.name}] Monitors reconfigured`);
+                    stateManager.syncMonitorStates().catch(error => {
+                        console.error(`[${this.metadata.name}] Failed to sync monitor states:`, error);
+                    });
+                }
+            );
+            this._signalConnections.push({ object: monitorManager, id: monitorsReconfiguredId });
+        }
     }
     
     _connectShellSignals() {
@@ -195,9 +239,9 @@ export default class GrayscaleExtension extends Extension {
         });
         this._signalConnections.push({ object: Main.sessionMode, id: sessionModeId });
         
-        // Connect to monitor changes for future multi-monitor support
+        // Legacy monitor change handling (MonitorManager provides more detailed handling)
         const monitorChangedId = Main.layoutManager.connect('monitors-changed', () => {
-            this._handleMonitorChange();
+            this._handleLegacyMonitorChange();
         });
         this._signalConnections.push({ object: Main.layoutManager, id: monitorChangedId });
     }
@@ -238,11 +282,18 @@ export default class GrayscaleExtension extends Extension {
         }
     }
     
-    _handleMonitorChange() {
-        console.log(`[${this.metadata.name}] Monitor configuration changed`);
+    _handleLegacyMonitorChange() {
+        console.log(`[${this.metadata.name}] Legacy monitor configuration changed`);
         
-        // In Phase 2, this will trigger monitor detection and state updates
-        // For Phase 1, we just log the event
+        // This is a fallback for cases where MonitorManager isn't available
+        const monitorManager = this.getComponent('MonitorManager');
+        if (monitorManager) {
+            // MonitorManager will handle the detailed monitor change processing
+            // This event is handled by the MonitorManager's hotplug system
+            return;
+        }
+        
+        // Fallback behavior for when MonitorManager is not available
         const effectManager = this.getComponent('EffectManager');
         const stateManager = this.getComponent('StateManager');
         
@@ -250,9 +301,9 @@ export default class GrayscaleExtension extends Extension {
             // Re-apply current state to handle monitor changes
             const currentState = stateManager.getGrayscaleState();
             if (currentState) {
-                effectManager.applyGlobalEffect(currentState, { 
+                effectManager.applyGlobalEffect(currentState, {
                     animated: false,
-                    force: true 
+                    force: true
                 }).catch(error => {
                     console.warn(`[${this.metadata.name}] Failed to re-apply effect after monitor change:`, error);
                 });
