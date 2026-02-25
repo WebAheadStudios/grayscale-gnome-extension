@@ -236,17 +236,41 @@ Known locations in this codebase (verified 2026-02):
   `override get iconName()`, `override destroy()` (×2)
 - `src/infrastructure/SignalManager.ts` → `override disconnect()`
 
-## Extension.getLogger() — Use Instead of Manual Prefixing
+## Logging in extension.ts — Use Infrastructure Logger, NOT getLogger()
 
-`Extension.getLogger()` (available GNOME 45+) returns a logger that
-automatically prefixes every message with the extension UUID. Use it in
-`src/extension.ts` instead of `console.log(\`[${this.metadata.name}] ...\`)`:
+`Extension.getLogger()` was introduced in **GNOME Shell 48**. This extension
+targets GNOME 45/46, so that API does **NOT** exist at runtime and calling it
+unconditionally will crash the extension on load with:
+`TypeError: this.getLogger is not a function`
+
+**Correct pattern** — use `src/infrastructure/Logger.ts` directly:
 
 ```typescript
-private _log = (this as any).getLogger() as ExtensionLogger;
-this._log.log('Enabled');   // → [uuid@domain] Enabled
-this._log.warn('Warning');
-this._log.error('Error');
+import { Logger, LogCategory, LogLevel } from './infrastructure/Logger.js';
+
+// In class fields:
+private _logger: InstanceType<typeof Logger> | null = null;
+private _log!: ExtensionLogger;   // ExtensionLogger = { log, warn, error }
+
+// In constructor (after super()):
+this._logger = new Logger({ level: LogLevel.Info, enableConsole: true });
+const _componentLog = this._logger.createComponentLogger(
+    metadata.uuid ?? 'grayscale-toggle@webaheadstudios.com',
+    LogCategory.System
+);
+this._log = {
+    log: (msg: string) => _componentLog.info(msg),
+    warn: (msg: string) => _componentLog.warn(msg),
+    error: (msg: string) => _componentLog.error(msg),
+};
+
+// In disable() — flush & destroy the logger last:
+this._logger?.destroy();
+this._logger = null;
 ```
 
-Only replace in `src/extension.ts`; component files use their own logging.
+Console output format:
+`[timestamp] [LEVEL] [grayscale-toggle@webaheadstudios.com] message`
+
+Only use this pattern in `src/extension.ts`; component files use their own
+`ComponentLogger` obtained from the same `Logger` instance via their base class.

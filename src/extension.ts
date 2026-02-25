@@ -7,6 +7,7 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import { EffectManager } from './effectManager.js';
+import { LogCategory, Logger, LogLevel } from './infrastructure/Logger.js';
 import { MonitorManager } from './monitorManager.js';
 import { SettingsController } from './settingsController.js';
 import { StateManager } from './stateManager.js';
@@ -38,7 +39,8 @@ interface ErrorHandler {
     handleError: (error: Error, context?: string) => void;
 }
 
-// Logger interface returned by Extension.getLogger()
+// Simple logger interface used throughout extension.ts
+// Backed by GrayscaleLogger (src/infrastructure/Logger.ts); maps .log() → .info()
 interface ExtensionLogger {
     log: (msg: string) => void;
     warn: (msg: string) => void;
@@ -50,12 +52,31 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
     private _initialized: boolean;
     private _errorHandler: ErrorHandler | null = null;
     private _signalConnections: SignalConnection[];
-    private _log: ExtensionLogger = (this as any).getLogger();
+    private _logger: InstanceType<typeof Logger> | null = null;
+    private _log!: ExtensionLogger;
 
     declare metadata: GrayscaleExtensionMetadata;
 
     constructor(metadata: GrayscaleExtensionMetadata) {
         super(metadata);
+
+        // Use GrayscaleLogger (infrastructure/Logger.ts) so every log line is
+        // prefixed with the extension UUID. Extension.getLogger() was only added
+        // in GNOME Shell 48 — this extension targets GNOME 45/46, so we cannot
+        // rely on that API.
+        this._logger = new Logger({
+            level: LogLevel.Info,
+            enableConsole: true,
+        });
+        const _componentLog = this._logger.createComponentLogger(
+            metadata.uuid ?? 'grayscale-toggle@webaheadstudios.com',
+            LogCategory.System
+        );
+        this._log = {
+            log: (msg: string) => _componentLog.info(msg),
+            warn: (msg: string) => _componentLog.warn(msg),
+            error: (msg: string) => _componentLog.error(msg),
+        };
 
         this._components = new Map();
         this._initialized = false;
@@ -95,6 +116,10 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
         } catch (error) {
             this._log.error(`Error during disable: ${error}`);
         }
+
+        // Flush and destroy the logger last so all disable messages are captured
+        this._logger?.destroy();
+        this._logger = null;
     }
 
     getComponent(name: string): ExtensionComponent | null {
