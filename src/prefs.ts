@@ -4,11 +4,9 @@
  */
 
 import Adw from 'gi://Adw';
-import Gtk from 'gi://Gtk';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
-import GObject from 'gi://GObject';
-import GLib from 'gi://GLib';
+import Gtk from 'gi://Gtk';
 
 import {
     ExtensionPreferences,
@@ -74,7 +72,9 @@ export class KeyboardShortcutSetting extends Gtk.Box {
     }
 
     private _updateButton(): void {
-        if (!this._settings || !this._key) return;
+        if (!this._settings || !this._key) {
+            return;
+        }
 
         const accelerators = this._settings.get_strv(this._key);
         if (accelerators.length > 0 && accelerators[0]) {
@@ -85,14 +85,18 @@ export class KeyboardShortcutSetting extends Gtk.Box {
     }
 
     private _onButtonClicked(): void {
-        if (!this._settings || !this._key) return;
+        if (!this._settings || !this._key) {
+            return;
+        }
 
         const dialog = new ShortcutDialog(this.get_root() as Gtk.Window, this._settings, this._key);
         dialog.present();
     }
 
     private _onResetClicked(): void {
-        if (!this._settings || !this._key) return;
+        if (!this._settings || !this._key) {
+            return;
+        }
         this._settings.reset(this._key);
     }
 
@@ -263,7 +267,7 @@ export default class GrayscalePreferences
         // Implemented by base class
     }
 
-    fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
+    override fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
         return new Promise<void>(resolve => {
             const settings = this.getSettings();
 
