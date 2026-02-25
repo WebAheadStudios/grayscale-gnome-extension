@@ -173,3 +173,80 @@ the full two-terminal cycle.
 (`.destroy()`), cancel all GLib timers (`GLib.source_remove(id)`), and remove
 all keyboard shortcuts (`Main.wm.removeKeybinding('key-name')`). Any resource
 not freed here causes memory leaks or crashes on re-enable.
+
+## Animation Durations — adjustAnimationTime() is Required
+
+Every animation duration passed to `ease_property()` or similar Clutter
+animation calls **MUST** be wrapped with `adjustAnimationTime()`:
+
+```typescript
+import { adjustAnimationTime } from 'resource:///org/gnome/shell/misc/animationUtils.js';
+duration: adjustAnimationTime(300); // respects Reduce Motion / Slow Down
+```
+
+This ensures the extension honours the user's accessibility settings. When
+animations are globally disabled, `adjustAnimationTime()` returns `0` making
+transitions instant. Hardcoded durations that bypass this break accessibility.
+
+## connectObject() / disconnectObject() — Preferred Pattern (GNOME 45+)
+
+In Shell context (NOT prefs), `connectObject()` / `disconnectObject()` is the
+preferred way to manage GObject signal connections in GNOME 45+:
+
+```typescript
+// Connect multiple signals, auto-disconnected when `this` is destroyed:
+source.connectObject(
+    'signal-a',
+    this._onA.bind(this),
+    'signal-b',
+    this._onB.bind(this),
+    this
+);
+source.disconnectObject(this);
+```
+
+**Not available in `src/prefs.ts`** — that file runs in a separate LibAdwaita
+process where Shell globals are absent.
+
+## src/prefs.ts — Shell-Only Globals Are Forbidden
+
+`src/prefs.ts` runs in a **separate LibAdwaita process**, completely outside
+GNOME Shell. The following APIs **must NOT** appear in `src/prefs.ts`:
+
+- `global` (Shell.Global singleton)
+- `Main.*` (Shell UI)
+- `connectObject()` / `disconnectObject()`
+- `actor.ease()`
+- `Math.clamp()` / `String.format()`
+- Any import from `resource:///org/gnome/shell/ui/...`
+
+Safe prefs imports: `gi://` libraries (`Adw`, `Gtk`, `Gio`, `GLib`) and
+`resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js`.
+
+## override Keyword — Enforced by noImplicitOverride
+
+`tsconfig.json` sets `"noImplicitOverride": true`. Any method overriding a
+base-class method requires the `override` keyword or TypeScript will error.
+Known locations in this codebase (verified 2026-02):
+
+- `src/extension.ts` → `override enable()`, `override disable()`
+- `src/prefs.ts` → `override fillPreferencesWindow()`
+- `src/panelIndicator.ts` → `override destroy()`
+- `src/quickSettingsIntegration.ts` → `override get label()`,
+  `override get iconName()`, `override destroy()` (×2)
+- `src/infrastructure/SignalManager.ts` → `override disconnect()`
+
+## Extension.getLogger() — Use Instead of Manual Prefixing
+
+`Extension.getLogger()` (available GNOME 45+) returns a logger that
+automatically prefixes every message with the extension UUID. Use it in
+`src/extension.ts` instead of `console.log(\`[${this.metadata.name}] ...\`)`:
+
+```typescript
+private _log = (this as any).getLogger() as ExtensionLogger;
+this._log.log('Enabled');   // → [uuid@domain] Enabled
+this._log.warn('Warning');
+this._log.error('Error');
+```
+
+Only replace in `src/extension.ts`; component files use their own logging.

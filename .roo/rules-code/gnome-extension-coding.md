@@ -144,6 +144,30 @@ import { SignalManager } from './infrastructure/index.js';
 
 ---
 
+## connectObject() / disconnectObject() — Preferred Signal Pattern (GNOME 45+)
+
+GNOME Shell 45+ provides lifecycle-tracked signal connections. Prefer this
+pattern for GObject-derived classes in Shell context (NOT in prefs):
+
+```typescript
+// Connect multiple signals tracked to this object:
+sourceObject.connectObject(
+    'signal-one',
+    this._onSignalOne.bind(this),
+    'signal-two',
+    this._onSignalTwo.bind(this),
+    this // tracking object — auto-disconnected when this is destroyed
+);
+
+// Disconnect all signals tracked to this:
+sourceObject.disconnectObject(this);
+```
+
+This is preferred over manual `SignalManager` arrays for GObject-derived classes
+in Shell context. **Not available in prefs context.**
+
+---
+
 ## GSettings Access
 
 Access settings via `this.getSettings()` from the `Extension` class, not from
@@ -179,3 +203,130 @@ settings.get_boolean('grayscaleEnabled');
 
 The TypeScript interfaces in `src/types/settings.ts` use camelCase for internal
 typing only. They do not map directly to schema key names.
+
+---
+
+## Animation Duration — Always Use adjustAnimationTime()
+
+Wrap ALL animation durations with `adjustAnimationTime()` so they respect the
+user's "Reduce Motion" and "Slow Down" accessibility settings. When animations
+are disabled the function returns `0`, making transitions instant.
+
+```typescript
+import { adjustAnimationTime } from 'resource:///org/gnome/shell/misc/animationUtils.js';
+
+// ✅ Correct:
+(effect as any).ease_property('factor', 1.0, {
+    duration: adjustAnimationTime(duration),
+    mode: Clutter.AnimationMode.EASE_IN_OUT,
+});
+
+// ❌ Wrong — ignores accessibility settings:
+(effect as any).ease_property('factor', 1.0, {
+    duration: duration,
+});
+```
+
+Add the module declaration to `src/ambient.d.ts` if TypeScript cannot resolve
+the import:
+
+```typescript
+declare module 'resource:///org/gnome/shell/misc/animationUtils.js' {
+    export function adjustAnimationTime(msecs: number): number;
+}
+```
+
+---
+
+## Prefs Context vs Extension Context
+
+`src/prefs.ts` runs in a **separate LibAdwaita process**, not inside GNOME
+Shell. These APIs are **NOT available** in prefs:
+
+| Forbidden in prefs                     | Reason                                 |
+| -------------------------------------- | -------------------------------------- |
+| `global`                               | Shell.Global singleton — Shell only    |
+| `Main.*`                               | Shell UI modules — Shell only          |
+| `connectObject()`                      | Shell GNOME 45+ extension — Shell only |
+| `actor.ease()`                         | Clutter animation — Shell only         |
+| `Math.clamp()`                         | GJS Shell global — Shell only          |
+| `String.format()`                      | GJS Shell global — Shell only          |
+| Any `resource:///org/gnome/shell/ui/*` | Shell UI modules                       |
+
+Safe prefs imports:
+
+```typescript
+import Adw from 'gi://Adw';
+import Gtk from 'gi://Gtk';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+```
+
+---
+
+## Logging — Use Extension.getLogger()
+
+In `Extension` class methods, use the built-in logger instead of manual
+`console.log` prefixing. `getLogger()` auto-prefixes all output with the
+extension UUID.
+
+```typescript
+// ✅ Correct — auto-prefixed with UUID
+interface ExtensionLogger {
+    log: (msg: string) => void;
+    warn: (msg: string) => void;
+    error: (msg: string) => void;
+}
+private _log: ExtensionLogger = (this as any).getLogger();
+
+this._log.log('Extension enabled');
+// outputs: [grayscale-toggle@webaheadstudios.com] Extension enabled
+
+// ❌ Wrong — manual prefixing, verbose
+console.log(`[${this.metadata.name}] Extension enabled`);
+```
+
+---
+
+## override Keyword — Required with noImplicitOverride
+
+`tsconfig.json` enables `"noImplicitOverride": true`. Any method that overrides
+a base-class method **must** include the `override` keyword. TypeScript will
+produce a compile error if it is omitted.
+
+```typescript
+// ✅ Correct:
+export default class GrayscaleExtension extends Extension {
+    override enable(): void { ... }
+    override disable(): void { ... }
+}
+
+// ❌ Wrong — compile error with noImplicitOverride: true:
+export default class GrayscaleExtension extends Extension {
+    enable(): void { ... }
+    disable(): void { ... }
+}
+```
+
+Common places that need `override` in this codebase:
+
+- `extension.ts`: `enable()`, `disable()`
+- `prefs.ts`: `fillPreferencesWindow()`
+- `panelIndicator.ts`: `destroy()`
+- `quickSettingsIntegration.ts`: `get label()`, `get iconName()`, `destroy()` ×2
+- `infrastructure/SignalManager.ts`: `disconnect()`
+
+---
+
+## Translations
+
+For i18n support, use the Extension base class methods:
+
+- `this.initTranslations(domain?)` — Initialize gettext
+- `this.gettext(str)` — Translate a string (alias: `_()`)
+- `this.ngettext(str, plural, n)` — Plural forms
+
+Currently, a placeholder `const _ = (str: string) => str` is used in
+`src/prefs.ts` for development. Replace with the base class helper when
+translation support is added.
