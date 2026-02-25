@@ -78,13 +78,12 @@ export class EnhancedEffectManager
 
     // Infrastructure services
     private _effectPool: EffectPool<Clutter.DesaturateEffect>;
-    private _signalManager: SignalManager;
+    private _enhancedSignalManager: SignalManager;
     private _errorBoundary: ErrorBoundary;
-    private _logger: any;
     private _performanceMonitor: PerformanceMonitor;
 
     // Enhanced state management
-    private _activeEffects: Map<string | number, Clutter.DesaturateEffect> = new Map();
+    private _activeEffects: Map<number, Clutter.DesaturateEffect> = new Map();
     private _animationSettings: EnhancedAnimationSettings;
     private _applicationQueue: Array<() => Promise<void>> = [];
     private _processingQueue: boolean = false;
@@ -122,7 +121,7 @@ export class EnhancedEffectManager
             maxIdleTime: 300000,
             enableStatistics: true,
         });
-        this._signalManager = new SignalManager();
+        this._enhancedSignalManager = new SignalManager();
         this._errorBoundary = new ErrorBoundary({
             enableCircuitBreaker: true,
             maxRetries: 3,
@@ -144,7 +143,7 @@ export class EnhancedEffectManager
                 LogCategory.Component
             );
             this._effectPool.setLogger(this._logger);
-            this._signalManager.setLogger(this._logger);
+            this._enhancedSignalManager.setLogger(this._logger);
             this._errorBoundary.setLogger(this._logger);
             this._performanceMonitor.setLogger(this._logger);
         }
@@ -155,8 +154,8 @@ export class EnhancedEffectManager
         }
 
         if (services.signalManager) {
-            this._signalManager.destroy();
-            this._signalManager = services.signalManager;
+            this._enhancedSignalManager.destroy();
+            this._enhancedSignalManager = services.signalManager;
         }
 
         if (services.errorBoundary) {
@@ -198,7 +197,7 @@ export class EnhancedEffectManager
     async onInitialize(): Promise<void> {
         this._log('info', 'Initializing EnhancedEffectManager...');
 
-        const timer = this._performanceMonitor?.startTimer('initialize', this.metadata.name);
+        const timerId = this._performanceMonitor?.startTimer('initialize', this.metadata.name);
 
         try {
             // Get dependencies with error boundary protection
@@ -233,7 +232,9 @@ export class EnhancedEffectManager
             this.handleError(error as Error, 'initialization');
             throw error;
         } finally {
-            timer?.();
+            if (timerId) {
+                this._performanceMonitor?.stopTimer(timerId);
+            }
         }
     }
 
@@ -267,7 +268,7 @@ export class EnhancedEffectManager
         try {
             // Clean up resources
             this._effectPool.destroy();
-            this._signalManager.destroy();
+            this._enhancedSignalManager.destroy();
 
             // Generate final performance report
             if (this._performanceMonitor) {
@@ -300,7 +301,7 @@ export class EnhancedEffectManager
         options: EnhancedEffectOptions = {}
     ): Promise<boolean> {
         const operation = enabled ? 'apply_global' : 'remove_global';
-        const timer = this._performanceMonitor?.startTimer(operation, this.metadata.name);
+        const timerId = this._performanceMonitor?.startTimer(operation, this.metadata.name);
 
         try {
             const result = await this._errorBoundary.catch(
@@ -331,7 +332,9 @@ export class EnhancedEffectManager
             this.handleError(error as Error, operation);
             return false;
         } finally {
-            timer?.();
+            if (timerId) {
+                this._performanceMonitor?.stopTimer(timerId);
+            }
         }
     }
 
@@ -341,7 +344,7 @@ export class EnhancedEffectManager
         options: EnhancedEffectOptions = {}
     ): Promise<boolean> {
         const operation = `${enabled ? 'apply' : 'remove'}_monitor_${monitorIndex}`;
-        const timer = this._performanceMonitor?.startTimer(operation, this.metadata.name);
+        const timerId = this._performanceMonitor?.startTimer(operation, this.metadata.name);
 
         try {
             const result = await this._errorBoundary.catch(
@@ -360,12 +363,14 @@ export class EnhancedEffectManager
             this.handleError(error as Error, operation);
             return false;
         } finally {
-            timer?.();
+            if (timerId) {
+                this._performanceMonitor?.stopTimer(timerId);
+            }
         }
     }
 
     removeAllEffects(): void {
-        const timer = this._performanceMonitor?.startTimer(
+        const timerId = this._performanceMonitor?.startTimer(
             'remove_all_effects',
             this.metadata.name
         );
@@ -375,7 +380,9 @@ export class EnhancedEffectManager
         } catch (error) {
             this.handleError(error as Error, 'remove_all_effects');
         } finally {
-            timer?.();
+            if (timerId) {
+                this._performanceMonitor?.stopTimer(timerId);
+            }
         }
     }
 
@@ -433,7 +440,7 @@ export class EnhancedEffectManager
         return {
             ...this._statistics,
             poolStats: this._effectPool.getStatistics(),
-            signalStats: this._signalManager?.getStats(),
+            signalStats: this._enhancedSignalManager?.getStats(),
             performanceStats: this._performanceMonitor?.getStatistics(),
             activeEffects: this._activeEffects.size,
             queueLength: this._applicationQueue.length,
@@ -613,7 +620,12 @@ export class EnhancedEffectManager
                 resolve();
             });
 
-            effect.add_transition('desaturate', transition);
+            const actor = effect.get_actor();
+            if (actor) {
+                actor.add_transition('desaturate', transition);
+            } else {
+                resolve();
+            }
         });
     }
 
@@ -638,7 +650,7 @@ export class EnhancedEffectManager
         this._log('debug', 'Connecting signals with enhanced signal manager');
 
         // Connect with enhanced signal management
-        this._signalManager.connect(
+        this._enhancedSignalManager.connectSignal(
             this._stateManager,
             'state-changed',
             this._onStateChanged.bind(this),
@@ -648,7 +660,7 @@ export class EnhancedEffectManager
             }
         );
 
-        this._signalManager.connect(
+        this._enhancedSignalManager.connectSignal(
             this._monitorManager,
             'monitors-changed',
             this._onMonitorsChanged.bind(this),
@@ -659,7 +671,7 @@ export class EnhancedEffectManager
         );
 
         if (this._settingsController) {
-            this._signalManager.connect(
+            this._enhancedSignalManager.connectSignal(
                 this._settingsController,
                 'setting-changed',
                 this._onSettingChanged.bind(this),
@@ -672,7 +684,7 @@ export class EnhancedEffectManager
 
     private _disconnectSignals(): void {
         this._log('debug', 'Disconnecting signals');
-        this._signalManager.disconnectByNamespace(this.metadata.name);
+        this._enhancedSignalManager.disconnectByNamespace(this.metadata.name);
     }
 
     private _onStateChanged(manager: any, enabled: boolean, previous: boolean, options: any): void {
@@ -699,7 +711,7 @@ export class EnhancedEffectManager
     }
 
     private _setupErrorRecovery(): void {
-        this._errorBoundary.setRecoveryAction('resource', {
+        this._errorBoundary.setRecoveryAction(ErrorCategory.Resource, {
             strategy: RecoveryStrategy.Retry,
             maxRetries: 2,
             retryDelay: 1000,
@@ -710,7 +722,7 @@ export class EnhancedEffectManager
             },
         });
 
-        this._errorBoundary.setRecoveryAction('state', {
+        this._errorBoundary.setRecoveryAction(ErrorCategory.State, {
             strategy: RecoveryStrategy.Degrade,
             fallbackAction: async () => {
                 this._log('warn', 'Graceful degradation - disabling animations');
@@ -743,7 +755,7 @@ export class EnhancedEffectManager
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    private _log(level: string, message: string, data?: any): void {
+    protected _log(level: string, message: string, data?: any): void {
         if (this._logger) {
             switch (level) {
                 case 'debug':
@@ -768,6 +780,47 @@ export class EnhancedEffectManager
     }
 
     // Legacy compatibility interface implementations
+    get effects(): Map<number, EffectState> {
+        const effectStates: Map<number, EffectState> = new Map();
+
+        for (const monitorIndex of this._activeEffects.keys()) {
+            effectStates.set(monitorIndex, {
+                isActive: true,
+                config: this.getEffectConfig(),
+                monitorIndex,
+            });
+        }
+
+        return effectStates;
+    }
+
+    async applyEffect(monitor: MonitorInfo, config: EffectConfig): Promise<void> {
+        await this.applyMonitorEffect(monitor.index, true, {
+            animated: config.animationDuration > 0,
+            duration: config.animationDuration,
+        });
+    }
+
+    async removeEffect(monitorIndex: number): Promise<void> {
+        await this.applyMonitorEffect(monitorIndex, false);
+    }
+
+    async updateEffect(monitorIndex: number, config: Partial<EffectConfig>): Promise<void> {
+        this.updateEffectConfig(config);
+
+        if (this._activeEffects.has(monitorIndex)) {
+            await this.applyMonitorEffect(monitorIndex, true, {
+                animated: config.animationDuration !== undefined && config.animationDuration > 0,
+                duration: config.animationDuration,
+            });
+        }
+    }
+
+    async toggleEffect(monitorIndex: number, _config?: EffectConfig): Promise<void> {
+        const isActive = this.isEffectActive(monitorIndex);
+        await this.applyMonitorEffect(monitorIndex, !isActive);
+    }
+
     initialize(): Promise<boolean> {
         return super.initialize();
     }

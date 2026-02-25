@@ -92,7 +92,7 @@ export class EffectPool<T extends Clutter.Effect = Clutter.Effect> extends GObje
     private _available: Map<string, EffectMetadata> = new Map();
     private _inUse: Map<string, EffectMetadata> = new Map();
     private _statistics: PoolStatistics;
-    private _cleanupTimeoutId: number | null = null;
+    private _cleanupTimeoutId: ReturnType<typeof setInterval> | null = null;
     private _nextId: number = 1;
     private _logger: any = null;
     private _destroyed: boolean = false;

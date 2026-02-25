@@ -3,14 +3,16 @@
  */
 
 import type { MonitorInfo } from './monitors.js';
+import type Clutter from 'gi://Clutter';
 
 // Effect configuration interface
 export interface EffectConfig {
-    brightness: number;
-    contrast: number;
-    saturation: number;
+    desaturation: number;
+    brightness?: number;
+    contrast?: number;
+    saturation?: number;
     animationDuration: number;
-    easing: string;
+    easing: Clutter.AnimationMode;
 }
 
 // Effect state interface

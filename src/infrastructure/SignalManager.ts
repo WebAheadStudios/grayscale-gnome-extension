@@ -9,6 +9,7 @@ import GLib from 'gi://GLib';
 // Signal connection metadata
 export interface SignalConnection {
     id: number;
+    signalId: number;
     object: GObject.Object;
     signal: string;
     handler: any;
@@ -109,7 +110,7 @@ export class SignalManager extends GObject.Object {
     }
 
     // Public API
-    connect(
+    connectSignal(
         object: GObject.Object,
         signal: string,
         handler: (...args: any[]) => any,
@@ -133,6 +134,7 @@ export class SignalManager extends GObject.Object {
         // Create connection metadata
         const connection: SignalConnection = {
             id: connectionId,
+            signalId,
             object,
             signal,
             handler: wrappedHandler,
@@ -180,7 +182,7 @@ export class SignalManager extends GObject.Object {
         handler: (...args: any[]) => any,
         options: ConnectionOptions = {}
     ): number {
-        return this.connect(object, signal, handler, { ...options, once: true });
+        return this.connectSignal(object, signal, handler, { ...options, once: true });
     }
 
     connectDebounced(
@@ -190,7 +192,7 @@ export class SignalManager extends GObject.Object {
         delay: number,
         options: ConnectionOptions = {}
     ): number {
-        return this.connect(object, signal, handler, { ...options, debounce: delay });
+        return this.connectSignal(object, signal, handler, { ...options, debounce: delay });
     }
 
     connectThrottled(
@@ -200,7 +202,7 @@ export class SignalManager extends GObject.Object {
         delay: number,
         options: ConnectionOptions = {}
     ): number {
-        return this.connect(object, signal, handler, { ...options, throttle: delay });
+        return this.connectSignal(object, signal, handler, { ...options, throttle: delay });
     }
 
     disconnect(connectionId: number): boolean {
@@ -484,7 +486,7 @@ export class SignalManager extends GObject.Object {
             }
 
             // Disconnect from the object
-            connection.object.disconnect(connection.id);
+            connection.object.disconnect(connection.signalId);
             connection.active = false;
 
             // Remove from tracking structures

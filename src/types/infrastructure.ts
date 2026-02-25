@@ -15,6 +15,8 @@ export type {
     RegistryConfig,
 } from '../infrastructure/index.js';
 
+import type { ComponentMetadata, ComponentConfig } from '../infrastructure/index.js';
+
 export type {
     SignalConnection,
     ConnectionOptions,
