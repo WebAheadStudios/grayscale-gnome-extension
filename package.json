@@ -29,6 +29,9 @@
         "extension:status": "node scripts/install.js --status",
         "dev:install": "npm run build:dev && node scripts/install.js --dev",
         "dev:uninstall": "node scripts/install.js --uninstall",
+        "dev:nested": "dbus-run-session gnome-shell --nested --wayland",
+        "dev:rebuild": "npm run build:dev && echo '🔄 Restart nested shell to load the updated modules'",
+        "dev:cycle": "npm run build:dev",
         "install:prod": "npm run build:prod && node scripts/install.js",
         "clean": "rm -rf dist/ build/ coverage/",
         "dev": "npm run dev:install",
@@ -45,14 +48,7 @@
         "docs:api": "node scripts/generate-docs.js",
         "validate-metadata": "node scripts/validate-metadata.js"
     },
-    "keywords": [
-        "gnome",
-        "gnome-shell",
-        "extension",
-        "grayscale",
-        "accessibility",
-        "toggle"
-    ],
+    "keywords": ["gnome", "gnome-shell", "extension", "grayscale", "accessibility", "toggle"],
     "author": "Luiz",
     "license": "MIT",
     "repository": {
@@ -95,9 +91,7 @@
     "extensionMetadata": {
         "uuid": "grayscale-toggle@webaheadstudios.com",
         "name": "Grayscale Toggle",
-        "shell-version": [
-            "46"
-        ],
+        "shell-version": ["46"],
         "gettext-domain": "grayscale-toggle",
         "settings-schema": "org.gnome.shell.extensions.grayscale-toggle"
     }

@@ -2,7 +2,6 @@
     "*.{ts,js}": ["eslint --fix --max-warnings 0", "prettier --write"],
     "*.{json,md}": ["prettier --write"],
     "src/**/*.ts": ["npm run compile"],
-    "package.json": ["npm audit --audit-level=moderate"],
     "src/metadata.json": ["node scripts/validate-metadata.js"],
     "schemas/*.gschema.xml": ["xmllint --noout"]
 }

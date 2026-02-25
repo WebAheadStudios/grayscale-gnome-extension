@@ -76,7 +76,7 @@ function execSilent(command, options = {}) {
             cwd: PROJECT_ROOT,
             ...options,
         });
-    } catch (err) {
+    } catch (_err) {
         return null;
     }
 }
@@ -132,7 +132,7 @@ function detectWindowManager() {
         }
 
         return 'unknown';
-    } catch (err) {
+    } catch (_err) {
         return 'unknown';
     }
 }
@@ -140,7 +140,9 @@ function detectWindowManager() {
 function getExtensionStatus() {
     try {
         const output = execSilent(`gnome-extensions show ${EXTENSION_UUID}`);
-        if (!output) return 'not-installed';
+        if (!output) {
+            return 'not-installed';
+        }
 
         const lines = output.split('\n');
         const stateLine = lines.find(line => line.trim().startsWith('State:'));
@@ -151,7 +153,7 @@ function getExtensionStatus() {
         }
 
         return 'unknown';
-    } catch (err) {
+    } catch (_err) {
         return 'not-installed';
     }
 }
@@ -169,13 +171,15 @@ function enableExtension() {
             try {
                 exec('killall -SIGQUIT gnome-shell', { stdio: 'pipe' });
                 success('GNOME Shell restarted');
-            } catch (err) {
+            } catch (_err) {
                 warn(
                     'Failed to restart GNOME Shell automatically. Press Alt+F2, type "r", then Enter to restart manually.'
                 );
             }
         } else {
-            warn('Running on Wayland. Please log out and log in again to activate the extension.');
+            warn('Running on Wayland. To test without logging out:');
+            warn('  Run in a new terminal: dbus-run-session gnome-shell --nested --wayland');
+            info('Or log out and log back in for the production session.');
         }
     } catch (err) {
         error('Failed to enable extension:', err.message);
@@ -211,15 +215,15 @@ function showStatus() {
             if (stats.isSymbolicLink()) {
                 const target = realpathSync(INSTALL_PATH);
                 console.log(`🔗 Symlink Target: ${target}`);
-                console.log(`🛠️  Install Type: Development (symlinked)`);
+                console.log('🛠️  Install Type: Development (symlinked)');
             } else {
-                console.log(`📁 Install Type: Production (copied files)`);
+                console.log('📁 Install Type: Production (copied files)');
             }
         } catch (err) {
             console.log(`❓ Install Type: Unknown (${err.message})`);
         }
     } else {
-        console.log(`📁 Install Type: Not installed`);
+        console.log('📁 Install Type: Not installed');
     }
 
     console.log('='.repeat(60) + '\n');
@@ -273,7 +277,7 @@ function installExtension() {
                 try {
                     exec(`glib-compile-schemas "${schemasPath}"`, { stdio: 'pipe' });
                     success('Schemas compiled successfully');
-                } catch (err) {
+                } catch (_err) {
                     warn('Schema compilation failed, but extension may still work');
                 }
             }
@@ -294,7 +298,7 @@ function installExtension() {
             error(`Failed to create archive: ${err.message}`);
         }
 
-        log(`Installing via gnome-extensions install --force...`);
+        log('Installing via gnome-extensions install --force...');
         try {
             exec(`gnome-extensions install --force "${archivePath}"`);
             success(`Extension installed to ${INSTALL_PATH}`);
@@ -398,6 +402,9 @@ async function main() {
         if (isDev) {
             info('Development mode: Extension is symlinked for easy development');
             info('Changes to source files will be reflected after recompiling');
+            info(
+                'Development cycle: npm run build:dev → restart nested shell (npm run dev:nested)'
+            );
         }
     } catch (err) {
         error('Installation failed:', err.message);

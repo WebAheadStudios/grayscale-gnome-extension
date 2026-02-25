@@ -20,6 +20,37 @@ This file provides guidance to agents when working with code in this repository.
   `initOrder`, and `destroyOrder` in `src/extension.ts`. If behavior and docs
   diverge, trust those arrays.
 
+## Development Workflow
+
+### Wayland nested shell pattern
+
+GJS cannot unload ES modules once loaded. On Wayland, reloading an extension in
+the same session does **not** pick up new module code. The only reliable way to
+test updated code on Wayland is to start a fresh `gnome-shell` process:
+
+```bash
+# Terminal 1 – build whenever source changes
+npm run build:dev       # or: npm run dev:rebuild (prints a reminder)
+
+# Terminal 2 – one-time nested session
+npm run dev:nested      # runs: dbus-run-session gnome-shell --nested --wayland
+```
+
+After each `build:dev`, close the nested shell window and run `dev:nested` again
+to start a fresh process that loads the new modules.
+
+Available dev scripts:
+
+| Script                | What it does                                      |
+| --------------------- | ------------------------------------------------- |
+| `npm run dev:nested`  | Launches a nested Wayland GNOME Shell session     |
+| `npm run dev:rebuild` | Builds dev bundle and prints a restart reminder   |
+| `npm run dev:cycle`   | Alias for `build:dev` (use inside a CI-like loop) |
+| `npm run dev:install` | Builds and installs via symlink (dev mode)        |
+
+> **Reference:**
+> https://gjs.guide/extensions/development/debugging.html#reloading-extensions
+
 ## Commands used in this repo
 
 - Build/dev package flow: `npm run build`, `npm run build:dev`,
