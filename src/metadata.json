@@ -2,7 +2,7 @@
   "uuid": "grayscale-toggle@webaheadstudios.com",
   "name": "Grayscale Toggle",
   "description": "Toggle grayscale effect for monitors with keyboard shortcuts and panel indicator",
-  "version": "1.0.0",
+  "version": 1,
   "shell-version": [
     "46"
   ],
