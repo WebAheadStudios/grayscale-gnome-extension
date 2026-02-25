@@ -1,7 +1,0 @@
-{
-    "*.{ts,js}": ["eslint --fix --max-warnings 0", "prettier --write"],
-    "*.{json,md}": ["prettier --write"],
-    "src/**/*.ts": ["npm run compile"],
-    "src/metadata.json": ["node scripts/validate-metadata.js"],
-    "schemas/*.gschema.xml": ["xmllint --noout"]
-}

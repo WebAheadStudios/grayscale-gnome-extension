@@ -3,18 +3,18 @@
  * Multi-monitor detection, hotplug event handling, and display management
  */
 
-import GObject from 'gi://GObject';
 import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
 import Meta from 'gi://Meta';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import type {
-    MonitorInfo,
-    MonitorChangeEvent,
-    MonitorManager as IMonitorManager,
-    MonitorDetection,
-} from './types/monitors.js';
 import type { ExtensionComponent } from './types/extension.js';
+import type {
+    MonitorManager as IMonitorManager,
+    MonitorChangeEvent,
+    MonitorDetection,
+    MonitorInfo,
+} from './types/monitors.js';
 
 // Extension interface for component access
 interface Extension {
@@ -47,259 +47,268 @@ interface HotplugEvent {
     timestamp: number;
 }
 
-export class MonitorManager extends GObject.Object implements IMonitorManager, ExtensionComponent {
-    static [GObject.signals] = {
-        'monitor-added': {
-            param_types: [GObject.TYPE_VARIANT],
+export const MonitorManager = GObject.registerClass(
+    {
+        GTypeName: 'GrayscaleMonitorManager',
+        Signals: {
+            'monitor-added': {
+                param_types: [GObject.TYPE_VARIANT],
+            },
+            'monitor-removed': {
+                param_types: [GObject.TYPE_INT],
+            },
+            'monitor-changed': {
+                param_types: [GObject.TYPE_INT, GObject.TYPE_VARIANT],
+            },
+            'monitors-reconfigured': {
+                param_types: [GObject.TYPE_VARIANT],
+            },
         },
-        'monitor-removed': {
-            param_types: [GObject.TYPE_INT],
-        },
-        'monitor-changed': {
-            param_types: [GObject.TYPE_INT, GObject.TYPE_VARIANT],
-        },
-        'monitors-reconfigured': {
-            param_types: [GObject.TYPE_VARIANT],
-        },
-    };
+    },
+    class MonitorManager extends GObject.Object implements IMonitorManager, ExtensionComponent {
+        private _extension: Extension;
+        private _monitors: Map<number, MonitorInfo>;
+        private _layoutManager: any = null; // Main.layoutManager type
+        private _hotplugManager: HotplugEventManager | null = null;
+        private _detectionEngine: AdvancedMonitorDetection;
+        private _signalConnections: SignalConnection[];
+        private _lastScanTime: number;
+        private _scanCount: number;
+        private _initialized: boolean;
 
-    private _extension: Extension;
-    private _monitors: Map<number, MonitorInfo>;
-    private _layoutManager: any = null; // Main.layoutManager type
-    private _hotplugManager: HotplugEventManager | null = null;
-    private _detectionEngine: AdvancedMonitorDetection;
-    private _signalConnections: SignalConnection[];
-    private _lastScanTime: number;
-    private _scanCount: number;
-    private _initialized: boolean;
+        constructor(extension: Extension) {
+            super();
 
-    constructor(extension: Extension) {
-        super();
-
-        this._extension = extension;
-        this._monitors = new Map();
-        this._layoutManager = null;
-        this._hotplugManager = null;
-        this._detectionEngine = new AdvancedMonitorDetection();
-
-        // Signal connections
-        this._signalConnections = [];
-
-        // Performance tracking
-        this._lastScanTime = 0;
-        this._scanCount = 0;
-
-        this._initialized = false;
-    }
-
-    // Initialization and lifecycle
-    async initialize(): Promise<boolean> {
-        if (this._initialized) {
-            return true;
-        }
-
-        try {
-            console.log('[MonitorManager] Initializing...');
-
-            this._layoutManager = Main.layoutManager;
-            this._hotplugManager = new HotplugEventManager(
-                this,
-                this._extension.getComponent('EffectManager')
-            );
-
-            await this._performInitialScan();
-            await this._hotplugManager.initialize();
-
-            this._initialized = true;
-            console.log('[MonitorManager] Initialized successfully');
-            return true;
-        } catch (error) {
-            console.error('[MonitorManager] Initialization failed:', error);
-            return false;
-        }
-    }
-
-    enable(): void {
-        this.initialize().catch(error => {
-            console.error('[MonitorManager] Failed to enable:', error);
-        });
-    }
-
-    disable(): void {
-        this.destroy();
-    }
-
-    destroy(): void {
-        console.log('[MonitorManager] Destroying...');
-
-        if (this._hotplugManager) {
-            this._hotplugManager.destroy();
+            this._extension = extension;
+            this._monitors = new Map();
+            this._layoutManager = null;
             this._hotplugManager = null;
+            this._detectionEngine = new AdvancedMonitorDetection();
+
+            // Signal connections
+            this._signalConnections = [];
+
+            // Performance tracking
+            this._lastScanTime = 0;
+            this._scanCount = 0;
+
+            this._initialized = false;
         }
 
-        this._disconnectSignals();
-        this._monitors.clear();
-        this._initialized = false;
+        // Initialization and lifecycle
+        async initialize(): Promise<boolean> {
+            if (this._initialized) {
+                return true;
+            }
 
-        console.log('[MonitorManager] Destroyed');
-    }
+            try {
+                console.log('[MonitorManager] Initializing...');
 
-    // Monitor discovery and management
-    private async _performInitialScan(): Promise<void> {
-        console.log('[MonitorManager] Performing initial monitor scan...');
+                this._layoutManager = Main.layoutManager;
+                this._hotplugManager = new HotplugEventManager(
+                    this,
+                    this._extension.getComponent('EffectManager')
+                );
 
-        const { monitors, changes } = await this._detectionEngine.detectMonitors();
-        this._updateMonitorRegistry(monitors);
-        this._processInitialState(monitors);
+                await this._performInitialScan();
+                await this._hotplugManager.initialize();
 
-        this._lastScanTime = Date.now();
-        this._scanCount++;
-
-        console.log(`[MonitorManager] Initial scan complete: ${monitors.length} monitors detected`);
-    }
-
-    async rescanMonitors(): Promise<DetectionResult> {
-        console.log('[MonitorManager] Rescanning monitors...');
-
-        const { monitors, changes } = await this._detectionEngine.detectMonitors();
-        this._updateMonitorRegistry(monitors);
-
-        this._lastScanTime = Date.now();
-        this._scanCount++;
-
-        return { monitors: Array.from(this._monitors.values()), changes };
-    }
-
-    private _updateMonitorRegistry(monitors: MonitorInfo[]): void {
-        // Clear existing monitors
-        this._monitors.clear();
-
-        // Add detected monitors
-        monitors.forEach(monitor => {
-            this._monitors.set(monitor.index, {
-                ...monitor,
-                lastSeen: Date.now(),
-                active: true,
-            } as MonitorInfo);
-        });
-    }
-
-    private _processInitialState(monitors: MonitorInfo[]): void {
-        const stateManager = this._extension.getComponent('StateManager');
-        if (!stateManager) {
-            return;
+                this._initialized = true;
+                console.log('[MonitorManager] Initialized successfully');
+                return true;
+            } catch (error) {
+                console.error('[MonitorManager] Initialization failed:', error);
+                return false;
+            }
         }
 
-        // Initialize state for newly detected monitors
-        monitors.forEach(monitor => {
-            const hasStoredState = stateManager.hasMonitorState(monitor.index);
-            if (!hasStoredState) {
-                // Initialize with global state if no per-monitor state exists
-                const globalState = stateManager.getGrayscaleState();
-                stateManager.initializeMonitorState(monitor.index, globalState);
-            }
-        });
-    }
-
-    // Public API - Monitor access
-    get monitors(): MonitorInfo[] {
-        return Array.from(this._monitors.values());
-    }
-
-    get primary(): MonitorInfo | null {
-        return Array.from(this._monitors.values()).find(monitor => monitor.isPrimary) || null;
-    }
-
-    getActiveMonitors(): MonitorInfo[] {
-        return Array.from(this._monitors.values()).filter(monitor => monitor.active);
-    }
-
-    getMonitorCount(): number {
-        return this._monitors.size;
-    }
-
-    getMonitor(index: number): MonitorInfo | null {
-        return this._monitors.get(index) || null;
-    }
-
-    getMonitorInfo(index: number): MonitorInfo | null {
-        return this._monitors.get(index) || null;
-    }
-
-    getAllMonitors(): MonitorInfo[] {
-        return Array.from(this._monitors.values());
-    }
-
-    getMonitorActor(index: number): any {
-        const monitor = this._monitors.get(index);
-        if (!monitor || !monitor.actor) {
-            // Fallback to layout manager
-            if (this._layoutManager && this._layoutManager.monitors[index]) {
-                return this._layoutManager.monitors[index];
-            }
-            return null;
+        enable(): void {
+            this.initialize().catch(error => {
+                console.error('[MonitorManager] Failed to enable:', error);
+            });
         }
-        return monitor.actor;
-    }
 
-    getGlobalStage(): any {
-        return global.stage;
-    }
+        disable(): void {
+            this.destroy();
+        }
 
-    getPrimaryMonitor(): MonitorInfo | null {
-        return Array.from(this._monitors.values()).find(monitor => monitor.isPrimary) || null;
-    }
+        destroy(): void {
+            console.log('[MonitorManager] Destroying...');
 
-    // Monitor properties
-    hasMultipleMonitors(): boolean {
-        return this._monitors.size > 1;
-    }
-
-    isValidMonitorIndex(index: number): boolean {
-        return this._monitors.has(index);
-    }
-
-    refresh(): void {
-        this.rescanMonitors().catch(error => {
-            console.error('[MonitorManager] Failed to refresh monitors:', error);
-        });
-    }
-
-    // Signal management
-    private _disconnectSignals(): void {
-        this._signalConnections.forEach(({ object, signalId }) => {
-            if (object && signalId) {
-                object.disconnect(signalId);
+            if (this._hotplugManager) {
+                this._hotplugManager.destroy();
+                this._hotplugManager = null;
             }
-        });
-        this._signalConnections = [];
-    }
 
-    // Events for external components
-    connectSignal(signal: string, callback: (event: MonitorChangeEvent) => void): number {
-        return (super.connect as any)(signal, callback);
-    }
+            this._disconnectSignals();
+            this._monitors.clear();
+            this._initialized = false;
 
-    disconnectSignal(id: number): void {
-        (super.disconnect as any)(id);
-    }
+            console.log('[MonitorManager] Destroyed');
+        }
 
-    onMonitorAdded(callback: (event: MonitorChangeEvent) => void): number {
-        return this.connectSignal('monitor-added', callback);
-    }
+        // Monitor discovery and management
+        private async _performInitialScan(): Promise<void> {
+            console.log('[MonitorManager] Performing initial monitor scan...');
 
-    onMonitorRemoved(callback: (event: MonitorChangeEvent) => void): number {
-        return this.connectSignal('monitor-removed', callback);
-    }
+            const { monitors, changes: _changes } = await this._detectionEngine.detectMonitors();
+            this._updateMonitorRegistry(monitors);
+            this._processInitialState(monitors);
 
-    onMonitorChanged(callback: (event: MonitorChangeEvent) => void): number {
-        return this.connectSignal('monitor-changed', callback);
-    }
+            this._lastScanTime = Date.now();
+            this._scanCount++;
 
-    onMonitorsReconfigured(callback: (event: MonitorChangeEvent) => void): number {
-        return this.connectSignal('monitors-reconfigured', callback);
+            console.log(
+                `[MonitorManager] Initial scan complete: ${monitors.length} monitors detected`
+            );
+        }
+
+        async rescanMonitors(): Promise<DetectionResult> {
+            console.log('[MonitorManager] Rescanning monitors...');
+
+            const { monitors, changes } = await this._detectionEngine.detectMonitors();
+            this._updateMonitorRegistry(monitors);
+
+            this._lastScanTime = Date.now();
+            this._scanCount++;
+
+            return { monitors: Array.from(this._monitors.values()), changes };
+        }
+
+        private _updateMonitorRegistry(monitors: MonitorInfo[]): void {
+            // Clear existing monitors
+            this._monitors.clear();
+
+            // Add detected monitors
+            monitors.forEach(monitor => {
+                this._monitors.set(monitor.index, {
+                    ...monitor,
+                    lastSeen: Date.now(),
+                    active: true,
+                } as MonitorInfo);
+            });
+        }
+
+        private _processInitialState(monitors: MonitorInfo[]): void {
+            const stateManager = this._extension.getComponent('StateManager');
+            if (!stateManager) {
+                return;
+            }
+
+            // Initialize state for newly detected monitors
+            monitors.forEach(monitor => {
+                const hasStoredState = stateManager.hasMonitorState(monitor.index);
+                if (!hasStoredState) {
+                    // Initialize with global state if no per-monitor state exists
+                    const globalState = stateManager.getGrayscaleState();
+                    stateManager.initializeMonitorState(monitor.index, globalState);
+                }
+            });
+        }
+
+        // Public API - Monitor access
+        get monitors(): MonitorInfo[] {
+            return Array.from(this._monitors.values());
+        }
+
+        get primary(): MonitorInfo | null {
+            return Array.from(this._monitors.values()).find(monitor => monitor.isPrimary) || null;
+        }
+
+        getActiveMonitors(): MonitorInfo[] {
+            return Array.from(this._monitors.values()).filter(monitor => monitor.active);
+        }
+
+        getMonitorCount(): number {
+            return this._monitors.size;
+        }
+
+        getMonitor(index: number): MonitorInfo | null {
+            return this._monitors.get(index) || null;
+        }
+
+        getMonitorInfo(index: number): MonitorInfo | null {
+            return this._monitors.get(index) || null;
+        }
+
+        getAllMonitors(): MonitorInfo[] {
+            return Array.from(this._monitors.values());
+        }
+
+        getMonitorActor(index: number): any {
+            const monitor = this._monitors.get(index);
+            if (!monitor || !monitor.actor) {
+                // Fallback to layout manager
+                if (this._layoutManager && this._layoutManager.monitors[index]) {
+                    return this._layoutManager.monitors[index];
+                }
+                return null;
+            }
+            return monitor.actor;
+        }
+
+        getGlobalStage(): any {
+            return global.stage;
+        }
+
+        getPrimaryMonitor(): MonitorInfo | null {
+            return Array.from(this._monitors.values()).find(monitor => monitor.isPrimary) || null;
+        }
+
+        // Monitor properties
+        hasMultipleMonitors(): boolean {
+            return this._monitors.size > 1;
+        }
+
+        isValidMonitorIndex(index: number): boolean {
+            return this._monitors.has(index);
+        }
+
+        refresh(): void {
+            this.rescanMonitors().catch(error => {
+                console.error('[MonitorManager] Failed to refresh monitors:', error);
+            });
+        }
+
+        // Signal management
+        private _disconnectSignals(): void {
+            this._signalConnections.forEach(({ object, signalId }) => {
+                if (object && signalId) {
+                    object.disconnect(signalId);
+                }
+            });
+            this._signalConnections = [];
+        }
+
+        // Events for external components
+        connectSignal(signal: string, callback: (event: MonitorChangeEvent) => void): number {
+            return (super.connect as any)(signal, callback);
+        }
+
+        disconnectSignal(id: number): void {
+            (super.disconnect as any)(id);
+        }
+
+        onMonitorAdded(callback: (event: MonitorChangeEvent) => void): number {
+            return this.connectSignal('monitor-added', callback);
+        }
+
+        onMonitorRemoved(callback: (event: MonitorChangeEvent) => void): number {
+            return this.connectSignal('monitor-removed', callback);
+        }
+
+        onMonitorChanged(callback: (event: MonitorChangeEvent) => void): number {
+            return this.connectSignal('monitor-changed', callback);
+        }
+
+        onMonitorsReconfigured(callback: (event: MonitorChangeEvent) => void): number {
+            return this.connectSignal('monitors-reconfigured', callback);
+        }
     }
-}
+);
+
+// Instance type alias for helper classes
+type MonitorManagerType = InstanceType<typeof MonitorManager>;
 
 // Advanced monitor detection engine
 class AdvancedMonitorDetection implements MonitorDetection {
@@ -344,7 +353,7 @@ class AdvancedMonitorDetection implements MonitorDetection {
         return { monitors: consolidatedMonitors, changes };
     }
 
-    watchChanges(callback: (monitors: MonitorInfo[]) => void): () => void {
+    watchChanges(_callback: (monitors: MonitorInfo[]) => void): () => void {
         // This would be implemented as a polling mechanism or signal watching
         // For now, return a no-op cleanup function
         return () => {};
@@ -410,7 +419,7 @@ class AdvancedMonitorDetection implements MonitorDetection {
         // Fallback method - minimal implementation
         try {
             const backend = (Meta as any).get_backend();
-            const monitorManager = backend.get_monitor_manager();
+            const _monitorManager = backend.get_monitor_manager();
             // This method provides additional validation but may not be available
             // on all systems, so it's used as a fallback/verification method
             return [];
@@ -442,7 +451,7 @@ class AdvancedMonitorDetection implements MonitorDetection {
         if (!monitors || monitors.length === 0) {
             return 0;
         }
-        const totalConfidence = monitors.reduce((sum, monitor) => sum + 0.5, 0); // Default confidence
+        const totalConfidence = monitors.reduce((sum, _monitor) => sum + 0.5, 0); // Default confidence
         return totalConfidence / monitors.length;
     }
 
@@ -502,14 +511,14 @@ class AdvancedMonitorDetection implements MonitorDetection {
 
 // Comprehensive hotplug event management
 class HotplugEventManager {
-    private _monitorManager: MonitorManager;
+    private _monitorManager: MonitorManagerType;
     private _effectManager: any;
     private _pendingOperations: Map<string, any>;
     private _debounceTimer: any = null;
     private _eventQueue: HotplugEvent[];
     private _signalConnections: SignalConnection[];
 
-    constructor(monitorManager: MonitorManager, effectManager: any) {
+    constructor(monitorManager: MonitorManagerType, effectManager: any) {
         this._monitorManager = monitorManager;
         this._effectManager = effectManager;
         this._pendingOperations = new Map();
@@ -611,7 +620,7 @@ class HotplugEventManager {
             }
 
             // Rescan monitors
-            const { monitors, changes } = await this._monitorManager.rescanMonitors();
+            const { changes } = await this._monitorManager.rescanMonitors();
 
             // Process changes
             await this._processMonitorChanges(changes);

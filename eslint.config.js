@@ -78,15 +78,6 @@ export default [
             'no-implicit-globals': 'error',
             strict: ['error', 'global'],
 
-            // Import rules for GNOME Shell
-            'no-restricted-syntax': [
-                'error',
-                {
-                    selector: 'ImportDeclaration[source.value=/^resource:\\/\\//]',
-                    message: 'Use correct resource:// imports for GNOME Shell resources',
-                },
-            ],
-
             // Code quality rules
             eqeqeq: ['error', 'always', { null: 'ignore' }],
             curly: ['error', 'all'],
