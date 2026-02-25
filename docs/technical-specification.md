@@ -2,13 +2,16 @@
 
 ## Document Overview
 
-**Project**: GNOME Shell Extension for Grayscale Toggle
-**Version**: 1.0.0
-**Target Environment**: GNOME Shell 46.0+ on Ubuntu 24.04.4 LTS
-**Architecture Reference**: This document serves as the complete specification
-**Created**: 2026-02-24
+**Project**: GNOME Shell Extension for Grayscale Toggle **Version**: 1.0.0
+**Target Environment**: GNOME Shell 46.0+ on Ubuntu 24.04.4 LTS **Architecture
+Reference**: This document serves as the complete specification **Created**:
+2026-02-24
 
-This document provides comprehensive technical specifications for implementing the GNOME Shell grayscale toggle extension. It serves as the definitive implementation guide, building upon the architecture design to provide exact specifications, complete code interfaces, and detailed implementation requirements.
+This document provides comprehensive technical specifications for implementing
+the GNOME Shell grayscale toggle extension. It serves as the definitive
+implementation guide, building upon the architecture design to provide exact
+specifications, complete code interfaces, and detailed implementation
+requirements.
 
 ## Table of Contents
 
@@ -68,9 +71,10 @@ graph TB
 ### 1.2 API Specifications
 
 #### Core Extension Interface
+
 ```javascript
 // Main Extension Class - src/extension.js
-import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 export default class GrayscaleExtension extends Extension {
@@ -89,7 +93,9 @@ export default class GrayscaleExtension extends Extension {
             this._loadInitialState();
             this._initialized = true;
 
-            console.log(`[${this.metadata.name}] Extension enabled successfully`);
+            console.log(
+                `[${this.metadata.name}] Extension enabled successfully`
+            );
         } catch (error) {
             this._handleInitializationError(error);
         }
@@ -113,10 +119,10 @@ export default class GrayscaleExtension extends Extension {
         // Component initialization in dependency order
         const componentOrder = [
             'SettingsController',
-            'StateManager',
             'MonitorManager',
+            'StateManager',
             'EffectManager',
-            'UIController'
+            'UIController',
         ];
 
         componentOrder.forEach(name => {
@@ -130,7 +136,9 @@ export default class GrayscaleExtension extends Extension {
             Array.from(this._components.values()).map(component =>
                 component.initialize()
             )
-        ).catch(error => this._errorHandler.handleError(error, 'initialization'));
+        ).catch(error =>
+            this._errorHandler.handleError(error, 'initialization')
+        );
     }
 }
 ```
@@ -171,6 +179,7 @@ sequenceDiagram
 ### 1.4 Data Structures
 
 #### Application State Schema
+
 ```javascript
 const ApplicationState = {
     global: {
@@ -240,7 +249,7 @@ export class StateManager extends ComponentBase {
         this._stateValidators = new Map();
         this._performanceMetrics = {
             toggleTimes: [],
-            errorCounts: new Map()
+            errorCounts: new Map(),
         };
     }
 
@@ -255,7 +264,7 @@ export class StateManager extends ComponentBase {
             skipPersistence = false,
             skipEvents = false,
             source = 'api',
-            animated = true
+            animated = true,
         } = options;
 
         // Performance tracking
@@ -263,7 +272,10 @@ export class StateManager extends ComponentBase {
 
         try {
             // Validation
-            if (!skipValidation && !this._validateStateChange('global.enabled', enabled)) {
+            if (
+                !skipValidation &&
+                !this._validateStateChange('global.enabled', enabled)
+            ) {
                 throw new ExtensionError(
                     `Invalid global state value: ${enabled}`,
                     'state-management',
@@ -276,7 +288,9 @@ export class StateManager extends ComponentBase {
 
             // Transaction management
             const transaction = this._beginTransaction('setGrayscaleState', {
-                enabled, source, animated
+                enabled,
+                source,
+                animated,
             });
 
             try {
@@ -296,8 +310,12 @@ export class StateManager extends ComponentBase {
 
                 // Event emission
                 if (!skipEvents) {
-                    this.emit(EXTENSION_CONSTANTS.SIGNALS.STATE_CHANGED,
-                             enabled, previousState, { source, animated });
+                    this.emit(
+                        EXTENSION_CONSTANTS.SIGNALS.STATE_CHANGED,
+                        enabled,
+                        previousState,
+                        { source, animated }
+                    );
                 }
 
                 // Performance tracking
@@ -305,12 +323,10 @@ export class StateManager extends ComponentBase {
                 this._recordPerformanceMetric('globalToggle', duration);
 
                 return true;
-
             } catch (error) {
                 this._rollbackTransaction(transaction);
                 throw error;
             }
-
         } catch (error) {
             this._recordError('setGrayscaleState', error);
             throw error;
@@ -346,7 +362,9 @@ export class StateManager extends ComponentBase {
 
         const previousState = this._state.monitors[monitorIndex].enabled;
         const transaction = this._beginTransaction('setMonitorState', {
-            monitorIndex, enabled, source: options.source || 'api'
+            monitorIndex,
+            enabled,
+            source: options.source || 'api',
         });
 
         try {
@@ -360,12 +378,15 @@ export class StateManager extends ComponentBase {
             }
 
             if (!options.skipEvents) {
-                this.emit(EXTENSION_CONSTANTS.SIGNALS.MONITOR_STATE_CHANGED,
-                         monitorIndex, enabled, previousState);
+                this.emit(
+                    EXTENSION_CONSTANTS.SIGNALS.MONITOR_STATE_CHANGED,
+                    monitorIndex,
+                    enabled,
+                    previousState
+                );
             }
 
             return true;
-
         } catch (error) {
             this._rollbackTransaction(transaction);
             throw error;
@@ -402,7 +423,10 @@ export class StateManager extends ComponentBase {
             );
         }
 
-        const transaction = this._beginTransaction('updateSetting', { key, value });
+        const transaction = this._beginTransaction('updateSetting', {
+            key,
+            value,
+        });
 
         try {
             // Update local cache
@@ -417,12 +441,15 @@ export class StateManager extends ComponentBase {
 
             // Emit settings change event
             if (!options.skipEvents) {
-                this.emit(EXTENSION_CONSTANTS.SIGNALS.SETTINGS_CHANGED,
-                         key, value, previousValue);
+                this.emit(
+                    EXTENSION_CONSTANTS.SIGNALS.SETTINGS_CHANGED,
+                    key,
+                    value,
+                    previousValue
+                );
             }
 
             return true;
-
         } catch (error) {
             this._rollbackTransaction(transaction);
             throw error;
@@ -435,7 +462,8 @@ export class StateManager extends ComponentBase {
 
     // Lifecycle Implementation
     async _doInitialize() {
-        this._settingsController = this._extension.getComponent('SettingsController');
+        this._settingsController =
+            this._extension.getComponent('SettingsController');
 
         if (!this._settingsController) {
             throw new ExtensionError(
@@ -452,8 +480,8 @@ export class StateManager extends ComponentBase {
         await this.loadState();
 
         // Connect to settings changes
-        this._settingsController.connect('setting-changed',
-            (key, value) => this._handleSettingChange(key, value)
+        this._settingsController.connect('setting-changed', (key, value) =>
+            this._handleSettingChange(key, value)
         );
 
         console.log('[StateManager] Initialized successfully');
@@ -486,25 +514,27 @@ export class StateManager extends ComponentBase {
                 previousState: false,
                 lastToggleTime: 0,
                 toggleCount: 0,
-                sessionStartTime: Date.now()
+                sessionStartTime: Date.now(),
             },
             monitors: {},
             settings: {
                 autoEnable: false,
                 animationDuration: 0.3,
-                keyboardShortcut: [EXTENSION_CONSTANTS.DEFAULT_SHORTCUTS.GLOBAL],
+                keyboardShortcut: [
+                    EXTENSION_CONSTANTS.DEFAULT_SHORTCUTS.GLOBAL,
+                ],
                 perMonitorMode: false,
                 showPanelIndicator: true,
                 showNotifications: true,
                 effectQuality: 'high',
-                performanceMode: false
+                performanceMode: false,
             },
             performance: {
                 lastEffectTime: 0,
                 memoryUsage: 0,
                 errorCount: 0,
-                averageToggleTime: 0
-            }
+                averageToggleTime: 0,
+            },
         };
     }
 
@@ -515,22 +545,34 @@ export class StateManager extends ComponentBase {
             lastToggleTime: 0,
             geometry: null,
             connector: null,
-            isPrimary: false
+            isPrimary: false,
         };
     }
 
     _setupValidators() {
-        this._stateValidators.set('global.enabled', (value) => typeof value === 'boolean');
-        this._stateValidators.set('monitor.enabled', (value) => typeof value === 'boolean');
-        this._stateValidators.set('settings.animationDuration',
-            (value) => typeof value === 'number' && value >= 0.0 && value <= 2.0
+        this._stateValidators.set(
+            'global.enabled',
+            value => typeof value === 'boolean'
         );
-        this._stateValidators.set('settings.perMonitorMode', (value) => typeof value === 'boolean');
-        this._stateValidators.set('settings.keyboardShortcut',
-            (value) => Array.isArray(value) && value.every(s => typeof s === 'string')
+        this._stateValidators.set(
+            'monitor.enabled',
+            value => typeof value === 'boolean'
         );
-        this._stateValidators.set('settings.effectQuality',
-            (value) => ['low', 'medium', 'high'].includes(value)
+        this._stateValidators.set(
+            'settings.animationDuration',
+            value => typeof value === 'number' && value >= 0.0 && value <= 2.0
+        );
+        this._stateValidators.set(
+            'settings.perMonitorMode',
+            value => typeof value === 'boolean'
+        );
+        this._stateValidators.set(
+            'settings.keyboardShortcut',
+            value =>
+                Array.isArray(value) && value.every(s => typeof s === 'string')
+        );
+        this._stateValidators.set('settings.effectQuality', value =>
+            ['low', 'medium', 'high'].includes(value)
         );
     }
 
@@ -552,7 +594,7 @@ export class StateManager extends ComponentBase {
             operation,
             data,
             timestamp: Date.now(),
-            state: JSON.parse(JSON.stringify(this._state)) // Deep clone
+            state: JSON.parse(JSON.stringify(this._state)), // Deep clone
         };
 
         this._transactionLog.push(transaction);
@@ -566,18 +608,24 @@ export class StateManager extends ComponentBase {
     }
 
     _commitTransaction(transaction) {
-        const index = this._transactionLog.findIndex(t => t.id === transaction.id);
+        const index = this._transactionLog.findIndex(
+            t => t.id === transaction.id
+        );
         if (index !== -1) {
             this._transactionLog.splice(index, 1);
         }
     }
 
     _rollbackTransaction(transaction) {
-        console.warn(`[StateManager] Rolling back transaction: ${transaction.operation}`,
-                     transaction.data);
+        console.warn(
+            `[StateManager] Rolling back transaction: ${transaction.operation}`,
+            transaction.data
+        );
 
         this._state = transaction.state;
-        const index = this._transactionLog.findIndex(t => t.id === transaction.id);
+        const index = this._transactionLog.findIndex(
+            t => t.id === transaction.id
+        );
         if (index !== -1) {
             this._transactionLog.splice(index, 1);
         }
@@ -591,8 +639,10 @@ export class StateManager extends ComponentBase {
 
         try {
             // Save global state
-            await this._settingsController.setSetting('global-enabled',
-                                                    this._state.global.enabled);
+            await this._settingsController.setSetting(
+                'global-enabled',
+                this._state.global.enabled
+            );
 
             // Save monitor states if in per-monitor mode
             if (this._state.settings.perMonitorMode) {
@@ -600,13 +650,16 @@ export class StateManager extends ComponentBase {
                 Object.keys(this._state.monitors).forEach(index => {
                     monitorStates[index] = this._state.monitors[index].enabled;
                 });
-                await this._settingsController.setSetting('monitor-states', monitorStates);
+                await this._settingsController.setSetting(
+                    'monitor-states',
+                    monitorStates
+                );
             }
 
             // Save performance metrics
             await this._settingsController.setSetting('performance-metrics', {
                 averageToggleTime: this._state.performance.averageToggleTime,
-                totalToggles: this._state.global.toggleCount
+                totalToggles: this._state.global.toggleCount,
             });
 
             return true;
@@ -623,17 +676,20 @@ export class StateManager extends ComponentBase {
 
         try {
             // Load global state
-            const globalEnabled = this._settingsController.getSetting('global-enabled');
+            const globalEnabled =
+                this._settingsController.getSetting('global-enabled');
             if (typeof globalEnabled === 'boolean') {
                 this._state.global.enabled = globalEnabled;
             }
 
             // Load monitor states
-            const monitorStates = this._settingsController.getSetting('monitor-states') || {};
+            const monitorStates =
+                this._settingsController.getSetting('monitor-states') || {};
             Object.keys(monitorStates).forEach(index => {
                 const monitorIndex = parseInt(index);
                 this._initializeMonitorState(monitorIndex);
-                this._state.monitors[monitorIndex].enabled = monitorStates[index];
+                this._state.monitors[monitorIndex].enabled =
+                    monitorStates[index];
             });
 
             // Load all settings into cache
@@ -656,7 +712,10 @@ export class StateManager extends ComponentBase {
                     this._state.settings[key] = value;
                 }
             } catch (error) {
-                console.warn(`[StateManager] Failed to load setting ${key}:`, error);
+                console.warn(
+                    `[StateManager] Failed to load setting ${key}:`,
+                    error
+                );
             }
         }
     }
@@ -684,7 +743,10 @@ export class StateManager extends ComponentBase {
             }
 
             // Update average
-            const sum = this._performanceMetrics.toggleTimes.reduce((a, b) => a + b, 0);
+            const sum = this._performanceMetrics.toggleTimes.reduce(
+                (a, b) => a + b,
+                0
+            );
             this._state.performance.averageToggleTime =
                 sum / this._performanceMetrics.toggleTimes.length;
         }
@@ -724,7 +786,7 @@ export class EffectManager extends ComponentBase {
         this._monitorManager = null;
         this._animationSettings = {
             duration: 300,
-            easing: Clutter.AnimationMode.EASE_IN_OUT
+            easing: Clutter.AnimationMode.EASE_IN_OUT,
         };
         this._effectQueue = [];
         this._processing = false;
@@ -738,11 +800,13 @@ export class EffectManager extends ComponentBase {
             animated = true,
             duration = this._animationSettings.duration,
             skipEvents = false,
-            force = false
+            force = false,
         } = options;
 
         if (this._suspended && !force) {
-            console.log('[EffectManager] Effects suspended, skipping application');
+            console.log(
+                '[EffectManager] Effects suspended, skipping application'
+            );
             return true;
         }
 
@@ -754,7 +818,7 @@ export class EffectManager extends ComponentBase {
                     this.applyMonitorEffect(monitor.index, enabled, {
                         animated,
                         duration,
-                        skipEvents: true // Avoid duplicate events
+                        skipEvents: true, // Avoid duplicate events
                     })
                 );
 
@@ -762,8 +826,12 @@ export class EffectManager extends ComponentBase {
                 const success = results.every(result => result);
 
                 if (!skipEvents) {
-                    this.emit(EXTENSION_CONSTANTS.SIGNALS.EFFECT_APPLIED,
-                             -1, 'global', success);
+                    this.emit(
+                        EXTENSION_CONSTANTS.SIGNALS.EFFECT_APPLIED,
+                        -1,
+                        'global',
+                        success
+                    );
                 }
 
                 return success;
@@ -772,13 +840,17 @@ export class EffectManager extends ComponentBase {
                 return await this._applyStageEffect(enabled, {
                     animated,
                     duration,
-                    skipEvents
+                    skipEvents,
                 });
             }
         } catch (error) {
             if (!skipEvents) {
-                this.emit(EXTENSION_CONSTANTS.SIGNALS.EFFECT_APPLIED,
-                         -1, 'global', false);
+                this.emit(
+                    EXTENSION_CONSTANTS.SIGNALS.EFFECT_APPLIED,
+                    -1,
+                    'global',
+                    false
+                );
             }
             throw new ExtensionError(
                 `Global effect application failed: ${error.message}`,
@@ -793,7 +865,7 @@ export class EffectManager extends ComponentBase {
         const {
             animated = true,
             duration = this._animationSettings.duration,
-            skipEvents = false
+            skipEvents = false,
         } = options;
 
         if (!Number.isInteger(monitorIndex) || monitorIndex < 0) {
@@ -810,15 +882,18 @@ export class EffectManager extends ComponentBase {
                 type: 'monitor',
                 monitorIndex,
                 enabled,
-                options: { animated, duration, skipEvents }
+                options: { animated, duration, skipEvents },
             };
 
             return await this._queueOperation(operation);
-
         } catch (error) {
             if (!skipEvents) {
-                this.emit(EXTENSION_CONSTANTS.SIGNALS.EFFECT_APPLIED,
-                         monitorIndex, 'monitor', false);
+                this.emit(
+                    EXTENSION_CONSTANTS.SIGNALS.EFFECT_APPLIED,
+                    monitorIndex,
+                    'monitor',
+                    false
+                );
             }
             throw new ExtensionError(
                 `Monitor effect application failed: ${error.message}`,
@@ -848,7 +923,8 @@ export class EffectManager extends ComponentBase {
             if (monitorIndex !== 'stage') {
                 removePromises.push(
                     this._removeMonitorEffect(parseInt(monitorIndex), {
-                        animated, duration
+                        animated,
+                        duration,
                     })
                 );
             }
@@ -908,15 +984,19 @@ export class EffectManager extends ComponentBase {
 
         if (enabled) {
             this._animationSettings.duration = Math.min(
-                this._animationSettings.duration, 150
+                this._animationSettings.duration,
+                150
             );
         } else {
             // Restore from settings
-            const duration = this._stateManager?.getSetting('animationDuration') || 0.3;
+            const duration =
+                this._stateManager?.getSetting('animationDuration') || 0.3;
             this._animationSettings.duration = duration * 1000;
         }
 
-        console.log(`[EffectManager] Performance mode ${enabled ? 'enabled' : 'disabled'}`);
+        console.log(
+            `[EffectManager] Performance mode ${enabled ? 'enabled' : 'disabled'}`
+        );
     }
 
     // Component Lifecycle
@@ -932,7 +1012,7 @@ export class EffectManager extends ComponentBase {
                 false,
                 {
                     stateManager: !!this._stateManager,
-                    monitorManager: !!this._monitorManager
+                    monitorManager: !!this._monitorManager,
                 }
             );
         }
@@ -972,27 +1052,31 @@ export class EffectManager extends ComponentBase {
             this._animationSettings.duration = duration * 1000; // Convert to ms
         }
 
-        const performanceMode = this._stateManager.getSetting('performanceMode');
+        const performanceMode =
+            this._stateManager.getSetting('performanceMode');
         this.setPerformanceMode(performanceMode);
     }
 
     _connectStateSignals() {
-        this._stateManager.connect(EXTENSION_CONSTANTS.SIGNALS.STATE_CHANGED,
-            (globalState) => this._handleGlobalStateChange(globalState)
+        this._stateManager.connect(
+            EXTENSION_CONSTANTS.SIGNALS.STATE_CHANGED,
+            globalState => this._handleGlobalStateChange(globalState)
         );
 
-        this._stateManager.connect(EXTENSION_CONSTANTS.SIGNALS.MONITOR_STATE_CHANGED,
-            (monitorIndex, state) => this._handleMonitorStateChange(monitorIndex, state)
+        this._stateManager.connect(
+            EXTENSION_CONSTANTS.SIGNALS.MONITOR_STATE_CHANGED,
+            (monitorIndex, state) =>
+                this._handleMonitorStateChange(monitorIndex, state)
         );
     }
 
     _connectMonitorSignals() {
-        this._monitorManager.connect('monitor-added',
-            (monitor) => this._handleMonitorAdded(monitor)
+        this._monitorManager.connect('monitor-added', monitor =>
+            this._handleMonitorAdded(monitor)
         );
 
-        this._monitorManager.connect('monitor-removed',
-            (monitorIndex) => this._handleMonitorRemoved(monitorIndex)
+        this._monitorManager.connect('monitor-removed', monitorIndex =>
+            this._handleMonitorRemoved(monitorIndex)
         );
     }
 
@@ -1031,20 +1115,20 @@ export class EffectManager extends ComponentBase {
 
 ### Technical Risks
 
-| Risk | Probability | Impact | Mitigation Strategy |
-|------|-------------|----------|-------------------|
-| GNOME Shell API Changes | Medium | High | Follow deprecation warnings, maintain compatibility layers |
-| Performance Degradation | Low | Medium | Performance benchmarking, optimization testing |
-| Multi-Monitor Edge Cases | Medium | Medium | Comprehensive testing matrix, graceful fallbacks |
-| Memory Leaks | Low | High | Proper cleanup patterns, memory profiling |
+| Risk                     | Probability | Impact | Mitigation Strategy                                        |
+| ------------------------ | ----------- | ------ | ---------------------------------------------------------- |
+| GNOME Shell API Changes  | Medium      | High   | Follow deprecation warnings, maintain compatibility layers |
+| Performance Degradation  | Low         | Medium | Performance benchmarking, optimization testing             |
+| Multi-Monitor Edge Cases | Medium      | Medium | Comprehensive testing matrix, graceful fallbacks           |
+| Memory Leaks             | Low         | High   | Proper cleanup patterns, memory profiling                  |
 
 ### User Experience Risks
 
-| Risk | Probability | Impact | Mitigation Strategy |
-|------|-------------|----------|-------------------|
-| Configuration Complexity | Medium | Low | Simplified defaults, progressive disclosure |
-| Shortcut Conflicts | High | Low | Conflict detection, alternative suggestions |
-| Visual Confusion | Low | Medium | Clear state indicators, user education |
+| Risk                     | Probability | Impact | Mitigation Strategy                         |
+| ------------------------ | ----------- | ------ | ------------------------------------------- |
+| Configuration Complexity | Medium      | Low    | Simplified defaults, progressive disclosure |
+| Shortcut Conflicts       | High        | Low    | Conflict detection, alternative suggestions |
+| Visual Confusion         | Low         | Medium | Clear state indicators, user education      |
 
 ---
 
@@ -1053,34 +1137,39 @@ export class EffectManager extends ComponentBase {
 ### Key Architectural Decisions
 
 1. **Clutter.DesaturateEffect Choice**:
-   - **Rationale**: Hardware-accelerated, performant, native GNOME support
-   - **Alternatives Considered**: CSS filters, custom shaders, GTK effects
-   - **Trade-offs**: Slightly more complex than CSS, but much better performance
+    - **Rationale**: Hardware-accelerated, performant, native GNOME support
+    - **Alternatives Considered**: CSS filters, custom shaders, GTK effects
+    - **Trade-offs**: Slightly more complex than CSS, but much better
+      performance
 
 2. **Component-Based Architecture**:
-   - **Rationale**: Maintainability, testability, clear separation of concerns
-   - **Alternatives Considered**: Monolithic design, functional approach
-   - **Trade-offs**: More initial complexity, but better long-term maintainability
+    - **Rationale**: Maintainability, testability, clear separation of concerns
+    - **Alternatives Considered**: Monolithic design, functional approach
+    - **Trade-offs**: More initial complexity, but better long-term
+      maintainability
 
 3. **ES6 Module Pattern**:
-   - **Rationale**: Modern JavaScript patterns, future compatibility, better tooling
-   - **Alternatives Considered**: Legacy imports system
-   - **Trade-offs**: GNOME 45+ requirement, but better development experience
+    - **Rationale**: Modern JavaScript patterns, future compatibility, better
+      tooling
+    - **Alternatives Considered**: Legacy imports system
+    - **Trade-offs**: GNOME 45+ requirement, but better development experience
 
 4. **Publisher-Subscriber Communication**:
-   - **Rationale**: Loose coupling, extensibility, clear event flow
-   - **Alternatives Considered**: Direct method calls, shared state objects
-   - **Trade-offs**: Slightly more complexity, but better maintainability
+    - **Rationale**: Loose coupling, extensibility, clear event flow
+    - **Alternatives Considered**: Direct method calls, shared state objects
+    - **Trade-offs**: Slightly more complexity, but better maintainability
 
 ### Technology Stack Justification
 
 **Core Technologies**:
+
 - **GJS 1.80.2**: Native GNOME runtime with modern JavaScript support
 - **Clutter**: Hardware-accelerated graphics pipeline
 - **GSettings**: Standard GNOME configuration management
 - **GTK4/Adwaita**: Modern GNOME UI framework
 
 **Pattern Choices**:
+
 - **ES6 Modules**: Future-proofing and better code organization
 - **Class-based OOP**: Clear component boundaries and inheritance
 - **Promise-based APIs**: Modern asynchronous programming patterns
@@ -1114,15 +1203,22 @@ export class EffectManager extends ComponentBase {
 
 ## Conclusion
 
-This technical specification provides a comprehensive implementation guide for developing a robust, maintainable GNOME Shell grayscale extension. The modular architecture enables incremental development while maintaining high code quality and user experience standards.
+This technical specification provides a comprehensive implementation guide for
+developing a robust, maintainable GNOME Shell grayscale extension. The modular
+architecture enables incremental development while maintaining high code quality
+and user experience standards.
 
-The component-based approach ensures clear separation of concerns while the comprehensive testing strategy guarantees reliability across diverse user environments. Performance optimizations and error handling provide a smooth user experience even under challenging conditions.
+The component-based approach ensures clear separation of concerns while the
+comprehensive testing strategy guarantees reliability across diverse user
+environments. Performance optimizations and error handling provide a smooth user
+experience even under challenging conditions.
 
-Key success factors include adherence to modern GNOME Shell patterns, comprehensive testing at each phase, and strong focus on performance and user experience throughout the development process.
+Key success factors include adherence to modern GNOME Shell patterns,
+comprehensive testing at each phase, and strong focus on performance and user
+experience throughout the development process.
 
 ---
 
-**Document Version**: 1.0
-**Created**: 2026-02-24
-**Target GNOME Shell Version**: 46.0+
-**Architecture Reference**: This document serves as the complete specification
+**Document Version**: 1.0 **Created**: 2026-02-24 **Target GNOME Shell
+Version**: 46.0+ **Architecture Reference**: This document serves as the
+complete specification

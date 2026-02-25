@@ -1,6 +1,7 @@
 # Grayscale Toggle - Developer Guide
 
-> **Comprehensive developer documentation** for contributing to, extending, and understanding the GNOME Shell Grayscale Toggle Extension.
+> **Comprehensive developer documentation** for contributing to, extending, and
+> understanding the GNOME Shell Grayscale Toggle Extension.
 
 ## 📋 Table of Contents
 
@@ -79,41 +80,35 @@ cd grayscale-gnome-extension
 export GNOME_SHELL_DEVELOPMENT=true
 export G_MESSAGES_DEBUG=all
 
-# Install development dependencies (if package.json exists)
+# Install dependencies and build
 npm install
-
-# Make build script executable
-chmod +x build.sh
+npm run build
 ```
 
 #### Development Installation
 
 ```bash
-# Create development symlink
-mkdir -p ~/.local/share/gnome-shell/extensions
-ln -sf "$(pwd)/src" ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev
-
-# Install schema for testing
-sudo cp schemas/org.gnome.shell.extensions.grayscale-toggle.gschema.xml \
-    /usr/share/glib-2.0/schemas/
-sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
-
-# Enable extension
-gnome-extensions enable grayscale-toggle@luiz.dev
+# Build and install in dev mode (creates symlink, compiles schemas, enables extension)
+npm run dev:install
 ```
 
 #### Live Development Workflow
 
 ```bash
 # Monitor extension logs in real-time
-journalctl -f -o cat /usr/bin/gnome-shell | grep -i grayscale
+journalctl --user -f | grep -E "(GrayscaleToggle|JS ERROR|EXTENSION)"
 
-# Quick restart extension (preserves state better than shell restart)
-gnome-extensions disable grayscale-toggle@luiz.dev && \
-gnome-extensions enable grayscale-toggle@luiz.dev
+# Wayland: GJS cannot unload ES modules — use a nested shell for each test cycle
+# Terminal 1: rebuild on each change
+npm run build:dev
 
-# For X11 sessions, restart shell when needed
-# Alt+F2, type 'r', press Enter
+# Terminal 2: start a fresh nested shell to load the new module code
+npm run dev:nested
+# After each build: close the nested shell window and run dev:nested again
+
+# X11 only: quick restart (does NOT reload new module code on Wayland)
+gnome-extensions disable grayscale-toggle@webaheadstudios.com && \
+gnome-extensions enable grayscale-toggle@webaheadstudios.com
 ```
 
 ---
@@ -155,9 +150,11 @@ graph TB
 
 #### Modular Architecture
 
-- **Separation of Concerns**: Each component has a single, well-defined responsibility
+- **Separation of Concerns**: Each component has a single, well-defined
+  responsibility
 - **Loose Coupling**: Components communicate through well-defined interfaces
-- **Dependency Injection**: Components receive dependencies rather than creating them
+- **Dependency Injection**: Components receive dependencies rather than creating
+  them
 - **Event-Driven**: State changes propagate through signals/events
 
 #### Performance Considerations
@@ -169,7 +166,8 @@ graph TB
 
 #### Error Handling
 
-- **Graceful Degradation**: Extension continues functioning with reduced features on errors
+- **Graceful Degradation**: Extension continues functioning with reduced
+  features on errors
 - **Comprehensive Logging**: Detailed debug information for troubleshooting
 - **Fallback Mechanisms**: Backup strategies when primary features fail
 - **Memory Safety**: Proper cleanup to prevent leaks and crashes
@@ -210,7 +208,8 @@ sequenceDiagram
 
 ### Extension.js - Main Extension Controller
 
-**Purpose**: Central coordinator and lifecycle manager for all extension components.
+**Purpose**: Central coordinator and lifecycle manager for all extension
+components.
 
 #### Key Responsibilities
 
@@ -353,7 +352,8 @@ async applyMonitorEffect(monitorIndex) {
 
 ### MonitorManager.js - Multi-Monitor Support
 
-**Purpose**: Advanced monitor detection, hotplug handling, and display management.
+**Purpose**: Advanced monitor detection, hotplug handling, and display
+management.
 
 #### Key Responsibilities
 
@@ -392,23 +392,23 @@ class MonitorManager extends GObject.Object {
 ```javascript
 // Advanced monitor detection with hotplug support
 class AdvancedMonitorDetection {
-  async performScan() {
-    const displays = Main.layoutManager.monitors;
-    const detected = new Map();
+    async performScan() {
+        const displays = Main.layoutManager.monitors;
+        const detected = new Map();
 
-    for (let i = 0; i < displays.length; i++) {
-      const info = {
-        index: i,
-        geometry: displays[i],
-        isPrimary: i === Main.layoutManager.primaryIndex,
-        connector: this._getConnectorInfo(i),
-        id: this._generateStableId(displays[i]),
-      };
-      detected.set(i, info);
+        for (let i = 0; i < displays.length; i++) {
+            const info = {
+                index: i,
+                geometry: displays[i],
+                isPrimary: i === Main.layoutManager.primaryIndex,
+                connector: this._getConnectorInfo(i),
+                id: this._generateStableId(displays[i]),
+            };
+            detected.set(i, info);
+        }
+
+        return detected;
     }
-
-    return detected;
-  }
 }
 ```
 
@@ -456,17 +456,17 @@ class UIController extends GObject.Object {
 ```javascript
 // Global state changes
 connect('state-changed', (manager, enabled) => {
-  console.log(`Global grayscale: ${enabled}`);
+    console.log(`Global grayscale: ${enabled}`);
 });
 
 // Per-monitor state changes
 connect('monitor-state-changed', (manager, monitorIndex, enabled) => {
-  console.log(`Monitor ${monitorIndex} grayscale: ${enabled}`);
+    console.log(`Monitor ${monitorIndex} grayscale: ${enabled}`);
 });
 
 // Setting changes
 connect('setting-changed', (manager, key, value) => {
-  console.log(`Setting ${key} changed to: ${value}`);
+    console.log(`Setting ${key} changed to: ${value}`);
 });
 ```
 
@@ -475,13 +475,13 @@ connect('setting-changed', (manager, key, value) => {
 ```javascript
 // Monitor hotplug events
 connect('monitor-added', (manager, monitorInfo) => {
-  console.log(`Monitor added: ${monitorInfo.name}`);
-  // Apply current state to new monitor
+    console.log(`Monitor added: ${monitorInfo.name}`);
+    // Apply current state to new monitor
 });
 
 connect('monitor-removed', (manager, monitorIndex) => {
-  console.log(`Monitor ${monitorIndex} removed`);
-  // Clean up monitor-specific state
+    console.log(`Monitor ${monitorIndex} removed`);
+    // Clean up monitor-specific state
 });
 ```
 
@@ -490,11 +490,11 @@ connect('monitor-removed', (manager, monitorIndex) => {
 ```javascript
 // Effect application tracking
 connect('effect-applied', (manager, monitorIndex, effectName, animated) => {
-  console.log(`Effect ${effectName} applied to monitor ${monitorIndex}`);
+    console.log(`Effect ${effectName} applied to monitor ${monitorIndex}`);
 });
 
 connect('effect-removed', (manager, monitorIndex, effectName, animated) => {
-  console.log(`Effect ${effectName} removed from monitor ${monitorIndex}`);
+    console.log(`Effect ${effectName} removed from monitor ${monitorIndex}`);
 });
 ```
 
@@ -557,49 +557,42 @@ connect('effect-removed', (manager, monitorIndex, effectName, animated) => {
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import GObject from 'gi://GObject';
 
-// Class definitions with proper inheritance
-export class MyComponent extends GObject.Object {
-  static [GObject.signals] = {
-    'custom-signal': {
-      param_types: [GObject.TYPE_STRING],
+// ✅ Class definitions with proper GObject registration (REQUIRED for signals)
+// Never use static [GObject.signals] — it does not register the GType and crashes
+export const MyComponent = GObject.registerClass(
+    {
+        GTypeName: 'GrayscaleMyComponent',
+        Signals: {
+            'custom-signal': {
+                param_types: [GObject.TYPE_STRING],
+            },
+        },
     },
-  };
+    class MyComponent extends GObject.Object {
+        _init(extension) {
+            super._init();
+            this._extension = extension;
+            this._initialized = false;
+        }
 
-  constructor(extension) {
-    super();
-    this._extension = extension;
-    this._initialized = false;
-  }
+        // Proper resource cleanup
+        destroy() {
+            if (!this._initialized) return;
 
-  // Async/await for asynchronous operations
-  async initialize() {
-    if (this._initialized) return;
-
-    try {
-      await this._performSetup();
-      this._initialized = true;
-    } catch (error) {
-      console.error('Initialization failed:', error);
-      throw error;
+            this._disconnectSignals();
+            this._cleanupResources();
+            this._initialized = false;
+        }
     }
-  }
-
-  // Proper resource cleanup
-  destroy() {
-    if (!this._initialized) return;
-
-    this._disconnectSignals();
-    this._cleanupResources();
-    this._initialized = false;
-  }
-}
+);
 ```
 
 #### Naming Conventions
 
 - **Classes**: PascalCase (`StateManager`, `EffectManager`)
 - **Methods**: camelCase (`initialize()`, `getMonitorState()`)
-- **Properties**: camelCase with underscore prefix for private (`_settings`, `_monitors`)
+- **Properties**: camelCase with underscore prefix for private (`_settings`,
+  `_monitors`)
 - **Constants**: SCREAMING_SNAKE_CASE (`DEFAULT_ANIMATION_DURATION`)
 - **Signals**: kebab-case (`'state-changed'`, `'monitor-added'`)
 
@@ -707,7 +700,7 @@ glib-compile-schemas --strict schemas/ || exit 1
 
 # Extension metadata validation
 echo "Validating extension metadata..."
-gnome-extensions show grayscale-toggle@luiz.dev >/dev/null 2>&1 || exit 1
+gnome-extensions show grayscale-toggle@webaheadstudios.com >/dev/null 2>&1 || exit 1
 
 echo "All checks passed!"
 ```
@@ -720,30 +713,30 @@ name: Continuous Integration
 on: [push, pull_request]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
 
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y gjs libglib2.0-dev
+            - name: Install dependencies
+              run: |
+                  sudo apt update
+                  sudo apt install -y gjs libglib2.0-dev
 
-      - name: Type checking
-        run: npx tsc --noEmit
+            - name: Type checking
+              run: npx tsc --noEmit
 
-      - name: Linting
-        run: eslint src/**/*.js
+            - name: Linting
+              run: eslint src/**/*.js
 
-      - name: Schema validation
-        run: glib-compile-schemas --strict schemas/
+            - name: Schema validation
+              run: glib-compile-schemas --strict schemas/
 
-      - name: Extension validation
-        run: |
-          mkdir -p ~/.local/share/gnome-shell/extensions
-          cp -r src ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev
-          # Additional validation steps...
+            - name: Extension validation
+              run: |
+                  mkdir -p ~/.local/share/gnome-shell/extensions
+                  cp -r src ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com
+                  # Additional validation steps...
 ```
 
 ---
@@ -760,45 +753,45 @@ import { StateManager } from '../../src/stateManager.js';
 import { MockExtension } from '../mocks/extension.js';
 
 describe('StateManager', () => {
-  let stateManager;
-  let mockExtension;
+    let stateManager;
+    let mockExtension;
 
-  beforeEach(() => {
-    mockExtension = new MockExtension();
-    stateManager = new StateManager(mockExtension);
-  });
-
-  afterEach(() => {
-    stateManager.destroy();
-  });
-
-  describe('Global State Management', () => {
-    test('should initialize with disabled state', () => {
-      expect(stateManager.getGlobalState()).toBe(false);
+    beforeEach(() => {
+        mockExtension = new MockExtension();
+        stateManager = new StateManager(mockExtension);
     });
 
-    test('should emit signal when global state changes', async () => {
-      const signalSpy = jest.fn();
-      stateManager.connect('state-changed', signalSpy);
-
-      await stateManager.setGlobalState(true);
-
-      expect(signalSpy).toHaveBeenCalledWith(stateManager, true);
-      expect(stateManager.getGlobalState()).toBe(true);
+    afterEach(() => {
+        stateManager.destroy();
     });
-  });
 
-  describe('Per-Monitor State Management', () => {
-    test('should manage monitor states independently', async () => {
-      await stateManager.enablePerMonitorMode();
+    describe('Global State Management', () => {
+        test('should initialize with disabled state', () => {
+            expect(stateManager.getGlobalState()).toBe(false);
+        });
 
-      await stateManager.setMonitorState(0, true);
-      await stateManager.setMonitorState(1, false);
+        test('should emit signal when global state changes', async () => {
+            const signalSpy = jest.fn();
+            stateManager.connect('state-changed', signalSpy);
 
-      expect(stateManager.getMonitorState(0)).toBe(true);
-      expect(stateManager.getMonitorState(1)).toBe(false);
+            await stateManager.setGlobalState(true);
+
+            expect(signalSpy).toHaveBeenCalledWith(stateManager, true);
+            expect(stateManager.getGlobalState()).toBe(true);
+        });
     });
-  });
+
+    describe('Per-Monitor State Management', () => {
+        test('should manage monitor states independently', async () => {
+            await stateManager.enablePerMonitorMode();
+
+            await stateManager.setMonitorState(0, true);
+            await stateManager.setMonitorState(1, false);
+
+            expect(stateManager.getMonitorState(0)).toBe(true);
+            expect(stateManager.getMonitorState(1)).toBe(false);
+        });
+    });
 });
 ```
 
@@ -807,32 +800,32 @@ describe('StateManager', () => {
 ```javascript
 // tests/mocks/extension.js
 export class MockExtension {
-  constructor() {
-    this.metadata = {
-      name: 'Test Grayscale Extension',
-      version: '1.0.0',
-    };
-    this._components = new Map();
-  }
+    constructor() {
+        this.metadata = {
+            name: 'Test Grayscale Extension',
+            version: '1.0.0',
+        };
+        this._components = new Map();
+    }
 
-  getComponent(name) {
-    return this._components.get(name);
-  }
+    getComponent(name) {
+        return this._components.get(name);
+    }
 
-  setComponent(name, component) {
-    this._components.set(name, component);
-  }
+    setComponent(name, component) {
+        this._components.set(name, component);
+    }
 }
 
 // tests/mocks/gnome.js
 export const MockMain = {
-  layoutManager: {
-    monitors: [
-      { x: 0, y: 0, width: 1920, height: 1080 },
-      { x: 1920, y: 0, width: 1920, height: 1080 },
-    ],
-    primaryIndex: 0,
-  },
+    layoutManager: {
+        monitors: [
+            { x: 0, y: 0, width: 1920, height: 1080 },
+            { x: 1920, y: 0, width: 1920, height: 1080 },
+        ],
+        primaryIndex: 0,
+    },
 };
 ```
 
@@ -843,47 +836,47 @@ export const MockMain = {
 ```javascript
 // tests/integration/multiMonitor.test.js
 describe('Multi-Monitor Integration', () => {
-  let extension;
+    let extension;
 
-  beforeAll(async () => {
-    // Set up test environment with multiple monitors
-    await setupTestEnvironment({
-      monitors: [
-        { width: 1920, height: 1080, primary: true },
-        { width: 1680, height: 1050, primary: false },
-      ],
-    });
-    extension = new GrayscaleExtension(mockMetadata);
-    await extension.enable();
-  });
-
-  test('should detect all monitors correctly', () => {
-    const monitorManager = extension.getComponent('MonitorManager');
-    const monitors = monitorManager.getConnectedMonitors();
-
-    expect(monitors.length).toBe(2);
-    expect(monitors[0].isPrimary).toBe(true);
-  });
-
-  test('should handle monitor hotplug events', async () => {
-    const monitorManager = extension.getComponent('MonitorManager');
-    const effectManager = extension.getComponent('EffectManager');
-
-    // Simulate monitor connection
-    await simulateMonitorConnection({
-      width: 2560,
-      height: 1440,
+    beforeAll(async () => {
+        // Set up test environment with multiple monitors
+        await setupTestEnvironment({
+            monitors: [
+                { width: 1920, height: 1080, primary: true },
+                { width: 1680, height: 1050, primary: false },
+            ],
+        });
+        extension = new GrayscaleExtension(mockMetadata);
+        await extension.enable();
     });
 
-    // Wait for detection
-    await waitForCondition(
-      () => monitorManager.getConnectedMonitors().length === 3
-    );
+    test('should detect all monitors correctly', () => {
+        const monitorManager = extension.getComponent('MonitorManager');
+        const monitors = monitorManager.getConnectedMonitors();
 
-    // Verify new monitor is handled correctly
-    const monitors = monitorManager.getConnectedMonitors();
-    expect(monitors.length).toBe(3);
-  });
+        expect(monitors.length).toBe(2);
+        expect(monitors[0].isPrimary).toBe(true);
+    });
+
+    test('should handle monitor hotplug events', async () => {
+        const monitorManager = extension.getComponent('MonitorManager');
+        const effectManager = extension.getComponent('EffectManager');
+
+        // Simulate monitor connection
+        await simulateMonitorConnection({
+            width: 2560,
+            height: 1440,
+        });
+
+        // Wait for detection
+        await waitForCondition(
+            () => monitorManager.getConnectedMonitors().length === 3
+        );
+
+        // Verify new monitor is handled correctly
+        const monitors = monitorManager.getConnectedMonitors();
+        expect(monitors.length).toBe(3);
+    });
 });
 ```
 
@@ -894,32 +887,32 @@ describe('Multi-Monitor Integration', () => {
 ```javascript
 // tests/performance/animations.test.js
 describe('Animation Performance', () => {
-  test('should complete transitions within time budget', async () => {
-    const effectManager = extension.getComponent('EffectManager');
-    const startTime = performance.now();
+    test('should complete transitions within time budget', async () => {
+        const effectManager = extension.getComponent('EffectManager');
+        const startTime = performance.now();
 
-    await effectManager.applyGlobalEffect({
-      duration: 300,
-      animated: true,
+        await effectManager.applyGlobalEffect({
+            duration: 300,
+            animated: true,
+        });
+
+        const endTime = performance.now();
+        const actualDuration = endTime - startTime;
+
+        // Allow 10% tolerance for timing
+        expect(actualDuration).toBeLessThan(330);
+        expect(actualDuration).toBeGreaterThan(270);
     });
 
-    const endTime = performance.now();
-    const actualDuration = endTime - startTime;
+    test('should maintain frame rate during transitions', async () => {
+        const frameRateMonitor = new FrameRateMonitor();
+        frameRateMonitor.start();
 
-    // Allow 10% tolerance for timing
-    expect(actualDuration).toBeLessThan(330);
-    expect(actualDuration).toBeGreaterThan(270);
-  });
+        await effectManager.applyGlobalEffect({ duration: 1000 });
 
-  test('should maintain frame rate during transitions', async () => {
-    const frameRateMonitor = new FrameRateMonitor();
-    frameRateMonitor.start();
-
-    await effectManager.applyGlobalEffect({ duration: 1000 });
-
-    const averageFrameRate = frameRateMonitor.getAverageFrameRate();
-    expect(averageFrameRate).toBeGreaterThan(30); // Minimum acceptable FPS
-  });
+        const averageFrameRate = frameRateMonitor.getAverageFrameRate();
+        expect(averageFrameRate).toBeGreaterThan(30); // Minimum acceptable FPS
+    });
 });
 ```
 
@@ -931,29 +924,29 @@ describe('Animation Performance', () => {
 
 #### First-Time Contributors
 
-1. **Read the Documentation**: Familiarize yourself with this guide and the user documentation
+1. **Read the Documentation**: Familiarize yourself with this guide and the user
+   documentation
 2. **Set Up Development Environment**: Follow the setup instructions above
-3. **Find an Issue**: Look for issues labeled "good first issue" or "help wanted"
-4. **Ask Questions**: Don't hesitate to ask for clarification in issues or discussions
+3. **Find an Issue**: Look for issues labeled "good first issue" or "help
+   wanted"
+4. **Ask Questions**: Don't hesitate to ask for clarification in issues or
+   discussions
 
 #### Issue Reporting
 
 ```markdown
 **Bug Report Template**
 
-**Describe the bug**
-A clear description of what the bug is.
+**Describe the bug** A clear description of what the bug is.
 
-**To Reproduce**
-Steps to reproduce the behavior:
+**To Reproduce** Steps to reproduce the behavior:
 
 1. Go to '...'
 2. Click on '...'
 3. Scroll down to '...'
 4. See error
 
-**Expected behavior**
-A clear description of what you expected to happen.
+**Expected behavior** A clear description of what you expected to happen.
 
 **Environment:**
 
@@ -962,8 +955,7 @@ A clear description of what you expected to happen.
 - Extension version: [e.g. 1.0.0]
 - Graphics: [e.g. NVIDIA GTX 1060]
 
-**Additional context**
-Add any other context about the problem here.
+**Additional context** Add any other context about the problem here.
 ```
 
 ### Code Contribution Process
@@ -984,8 +976,7 @@ Add any other context about the problem here.
 ```markdown
 **Pull Request Template**
 
-**Summary**
-Brief description of changes and motivation.
+**Summary** Brief description of changes and motivation.
 
 **Changes Made**
 
@@ -1036,7 +1027,9 @@ Brief description of changes and motivation.
 
 #### Code of Conduct
 
-We follow the [GNOME Code of Conduct](https://wiki.gnome.org/Foundation/CodeOfConduct). Key points:
+We follow the
+[GNOME Code of Conduct](https://wiki.gnome.org/Foundation/CodeOfConduct). Key
+points:
 
 - Be considerate and respectful
 - Be collaborative and constructive
@@ -1056,13 +1049,13 @@ We follow the [GNOME Code of Conduct](https://wiki.gnome.org/Foundation/CodeOfCo
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 export default class MyExtension extends Extension {
-  enable() {
-    // Extension initialization
-  }
+    enable() {
+        // Extension initialization
+    }
 
-  disable() {
-    // Cleanup when disabled
-  }
+    disable() {
+        // Cleanup when disabled
+    }
 }
 ```
 
@@ -1071,33 +1064,33 @@ export default class MyExtension extends Extension {
 ```javascript
 // Base component with standardized lifecycle
 export class ExtensionComponent extends GObject.Object {
-  constructor(extension) {
-    super();
-    this._extension = extension;
-    this._initialized = false;
-  }
+    constructor(extension) {
+        super();
+        this._extension = extension;
+        this._initialized = false;
+    }
 
-  async initialize() {
-    if (this._initialized) return;
+    async initialize() {
+        if (this._initialized) return;
 
-    await this._doInitialize();
-    this._initialized = true;
-  }
+        await this._doInitialize();
+        this._initialized = true;
+    }
 
-  destroy() {
-    if (!this._initialized) return;
+    destroy() {
+        if (!this._initialized) return;
 
-    this._doDestroy();
-    this._initialized = false;
-  }
+        this._doDestroy();
+        this._initialized = false;
+    }
 
-  // Subclasses implement these
-  async _doInitialize() {
-    throw new Error('Not implemented');
-  }
-  _doDestroy() {
-    throw new Error('Not implemented');
-  }
+    // Subclasses implement these
+    async _doInitialize() {
+        throw new Error('Not implemented');
+    }
+    _doDestroy() {
+        throw new Error('Not implemented');
+    }
 }
 ```
 
@@ -1105,22 +1098,22 @@ export class ExtensionComponent extends GObject.Object {
 
 ```javascript
 class SignalManager {
-  constructor() {
-    this._connections = [];
-  }
+    constructor() {
+        this._connections = [];
+    }
 
-  connect(object, signal, callback) {
-    const id = object.connect(signal, callback);
-    this._connections.push({ object, id });
-    return id;
-  }
+    connect(object, signal, callback) {
+        const id = object.connect(signal, callback);
+        this._connections.push({ object, id });
+        return id;
+    }
 
-  disconnectAll() {
-    this._connections.forEach(({ object, id }) => {
-      object.disconnect(id);
-    });
-    this._connections = [];
-  }
+    disconnectAll() {
+        this._connections.forEach(({ object, id }) => {
+            object.disconnect(id);
+        });
+        this._connections = [];
+    }
 }
 ```
 
@@ -1128,22 +1121,27 @@ class SignalManager {
 
 ```javascript
 class SettingsManager {
-  constructor(schemaId) {
-    this._settings = ExtensionUtils.getSettings(schemaId);
-    this._bindings = new Map();
-  }
+    constructor(schemaId) {
+        this._settings = ExtensionUtils.getSettings(schemaId);
+        this._bindings = new Map();
+    }
 
-  bind(key, object, property) {
-    this._settings.bind(key, object, property, Gio.SettingsBindFlags.DEFAULT);
-    this._bindings.set(key, { object, property });
-  }
+    bind(key, object, property) {
+        this._settings.bind(
+            key,
+            object,
+            property,
+            Gio.SettingsBindFlags.DEFAULT
+        );
+        this._bindings.set(key, { object, property });
+    }
 
-  unbindAll() {
-    this._bindings.forEach(({ object, property }, key) => {
-      this._settings.unbind(object, property);
-    });
-    this._bindings.clear();
-  }
+    unbindAll() {
+        this._bindings.forEach(({ object, property }, key) => {
+            this._settings.unbind(object, property);
+        });
+        this._bindings.clear();
+    }
 }
 ```
 

@@ -1,6 +1,7 @@
 # Grayscale Toggle - Installation Guide
 
-> **Comprehensive installation instructions** for all supported platforms, installation methods, and troubleshooting procedures.
+> **Comprehensive installation instructions** for all supported platforms,
+> installation methods, and troubleshooting procedures.
 
 ## 📋 Table of Contents
 
@@ -72,37 +73,37 @@
 
 1. **Visit the Extensions Website:**
 
-   ```bash
-   # Open in your browser
-   https://extensions.gnome.org/
-   # Search for "Grayscale Toggle"
-   ```
+    ```bash
+    # Open in your browser
+    https://extensions.gnome.org/
+    # Search for "Grayscale Toggle"
+    ```
 
 2. **Install Browser Integration:**
 
-   ```bash
-   # For Firefox (recommended)
-   sudo apt install gnome-browser-connector    # Ubuntu/Debian
-   sudo dnf install gnome-browser-connector    # Fedora
-   sudo pacman -S gnome-browser-connector      # Arch Linux
+    ```bash
+    # For Firefox (recommended)
+    sudo apt install gnome-browser-connector    # Ubuntu/Debian
+    sudo dnf install gnome-browser-connector    # Fedora
+    sudo pacman -S gnome-browser-connector      # Arch Linux
 
-   # Install browser extension from:
-   # https://addons.mozilla.org/en-US/firefox/addon/gnome-shell-integration/
-   ```
+    # Install browser extension from:
+    # https://addons.mozilla.org/en-US/firefox/addon/gnome-shell-integration/
+    ```
 
 3. **Install the Extension:**
-   - Click the "Install" toggle on the extension page
-   - Confirm installation when prompted
-   - The extension will be automatically enabled
+    - Click the "Install" toggle on the extension page
+    - Confirm installation when prompted
+    - The extension will be automatically enabled
 
 4. **Verify Installation:**
 
-   ```bash
-   # Check if extension is installed and enabled
-   gnome-extensions list --enabled | grep grayscale-toggle
+    ```bash
+    # Check if extension is installed and enabled
+    gnome-extensions list --enabled | grep grayscale-toggle
 
-   # Should output: grayscale-toggle@webaheadstudios.com
-   ```
+    # Should output: grayscale-toggle@webaheadstudios.com
+    ```
 
 ### Method 2: Using GNOME Extensions App
 
@@ -110,34 +111,35 @@
 
 1. **Install GNOME Extensions App:**
 
-   ```bash
-   # Ubuntu/Debian
-   sudo apt install gnome-shell-extension-manager
+    ```bash
+    # Ubuntu/Debian
+    sudo apt install gnome-shell-extension-manager
 
-   # Fedora
-   sudo dnf install gnome-shell-extension-manager
+    # Fedora
+    sudo dnf install gnome-shell-extension-manager
 
-   # Arch Linux
-   sudo pacman -S extension-manager
+    # Arch Linux
+    sudo pacman -S extension-manager
 
-   # Flatpak (any distribution)
-   flatpak install flathub com.mattjakeman.ExtensionManager
-   ```
+    # Flatpak (any distribution)
+    flatpak install flathub com.mattjakeman.ExtensionManager
+    ```
 
 2. **Browse and Install:**
-   - Open "Extensions" app from Activities
-   - Click "Browse" tab
-   - Search for "Grayscale Toggle"
-   - Click "Install" button
-   - Enable the extension
+    - Open "Extensions" app from Activities
+    - Click "Browse" tab
+    - Search for "Grayscale Toggle"
+    - Click "Install" button
+    - Enable the extension
 
 3. **Configure Settings:**
-   - Click the gear icon next to the extension
-   - Adjust preferences as needed
+    - Click the gear icon next to the extension
+    - Adjust preferences as needed
 
 ### Method 3: Modern Development Installation (Material Shell Inspired)
 
-**One-command installation with convenient npm scripts - ideal for developers and power users**
+**One-command installation with convenient npm scripts - ideal for developers
+and power users**
 
 #### Quick Start (Recommended for Developers)
 
@@ -150,6 +152,7 @@ npm run dev:install
 ```
 
 **What this does:**
+
 - Builds the extension automatically
 - Creates development symlink for easy testing
 - Compiles GSettings schemas
@@ -177,22 +180,24 @@ npm run build:prod          # Build for production
 
 #### Advantages of this Method
 
-✅ **One-Command Setup**: `npm run dev:install` does everything
-✅ **Material Shell Parity**: Same convenience as popular extensions
-✅ **Development Focus**: Easy symlink setup for developers
-✅ **Cross-Platform**: Works on all Linux distributions with GNOME
-✅ **Status Management**: Easy checking with `npm run extension:status`
-✅ **Error Handling**: Clear error messages and recovery instructions
+✅ **One-Command Setup**: `npm run dev:install` does everything ✅ **Material
+Shell Parity**: Same convenience as popular extensions ✅ **Development Focus**:
+Easy symlink setup for developers ✅ **Cross-Platform**: Works on all Linux
+distributions with GNOME ✅ **Status Management**: Easy checking with
+`npm run extension:status` ✅ **Error Handling**: Clear error messages and
+recovery instructions
 
 #### Session Type Support
 
 **Wayland (Recommended):**
+
 ```bash
 npm run dev:install
 # Extension installed - log out/in to activate
 ```
 
 **X11:**
+
 ```bash
 npm run dev:install
 # GNOME Shell restarts automatically
@@ -464,6 +469,7 @@ npm run dev:install
 ```
 
 This command automatically:
+
 - Builds the extension for development
 - Creates a symlink for easy development
 - Compiles GSettings schemas
@@ -534,21 +540,25 @@ export G_MESSAGES_DEBUG=all
 npm install
 ```
 
-#### 2. Manual Symlink Installation
+#### 2. Development Installation
 
 ```bash
-# Create extension directory
-mkdir -p ~/.local/share/gnome-shell/extensions
+# Build and install extension in development mode
+# (creates symlink, compiles schemas, enables extension automatically)
+npm run dev:install
+```
 
-# Build extension first
+**Testing code changes on Wayland** — GJS cannot unload ES modules, so
+`gnome-extensions disable && enable` does not reload new code. Use a nested
+shell:
+
+```bash
+# Terminal 1: rebuild on each change
 npm run build:dev
 
-# Create development symlink
-ln -sf "$(pwd)/dist" \
-    ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com
-
-# Compile schemas manually
-glib-compile-schemas ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com/schemas/
+# Terminal 2: fresh nested shell per test cycle
+npm run dev:nested
+# After each build: close the nested shell window, run dev:nested again
 ```
 
 #### 3. Development Tools Setup
@@ -568,11 +578,15 @@ gnome-extensions enable grayscale-toggle@webaheadstudios.com
 
 ```bash
 # Monitor extension logs
-journalctl -f -o cat /usr/bin/gnome-shell | grep -i grayscale &
+journalctl --user -f | grep -E "(GrayscaleToggle|JS ERROR|EXTENSION)" &
 
-# Make changes to source files...
-# Rebuild and restart extension
+# Make changes to source files, then rebuild
 npm run build:dev
+
+# Wayland: start fresh nested shell (required to pick up new module code)
+npm run dev:nested
+
+# X11 only: quick disable/enable (does NOT reload new modules on Wayland)
 gnome-extensions disable grayscale-toggle@webaheadstudios.com
 gnome-extensions enable grayscale-toggle@webaheadstudios.com
 ```
@@ -654,7 +668,7 @@ gsettings set org.gnome.shell.extensions.grayscale-toggle per-monitor-mode true
 
 # Check monitor detection
 # Open preferences and verify all monitors are listed
-gnome-extensions prefs grayscale-toggle@luiz.dev
+gnome-extensions prefs grayscale-toggle@webaheadstudios.com
 ```
 
 #### Performance Tuning
@@ -682,10 +696,10 @@ gsettings set org.gnome.shell.extensions.grayscale-toggle animation-duration 0
 
 ```bash
 # Check if extension directory exists
-ls -la ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev/
+ls -la ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com/
 
 # Verify metadata.json is valid
-cat ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev/metadata.json
+cat ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com/metadata.json
 
 # Check GNOME Shell compatibility
 gnome-shell --version
@@ -696,7 +710,7 @@ gnome-shell --version
 
 ```bash
 # Reinstall with correct permissions
-chmod -R 755 ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev/
+chmod -R 755 ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com/
 
 # Restart GNOME Shell (X11) or logout/login (Wayland)
 ```
@@ -743,7 +757,7 @@ sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
 
 # User directory should not require sudo
 mkdir -p ~/.local/share/gnome-shell/extensions/
-cp -r src/* ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev/
+cp -r src/* ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com/
 ```
 
 ### Runtime Issues
@@ -767,7 +781,7 @@ journalctl --since="5 minutes ago" -u gnome-shell@$(whoami).service | grep -i er
 gsettings reset-recursively org.gnome.shell.extensions.grayscale-toggle
 
 # Clear extension cache
-rm -rf ~/.cache/gnome-shell/extensions/grayscale-toggle@luiz.dev/
+rm -rf ~/.cache/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com/
 
 # Restart GNOME Shell completely
 sudo systemctl restart gdm  # Will logout all users!
@@ -823,8 +837,8 @@ gsettings reset org.gnome.shell.extensions.grayscale-toggle per-monitor-mode
 gsettings set org.gnome.shell.extensions.grayscale-toggle per-monitor-mode true
 
 # Disable and re-enable extension
-gnome-extensions disable grayscale-toggle@luiz.dev
-gnome-extensions enable grayscale-toggle@luiz.dev
+gnome-extensions disable grayscale-toggle@webaheadstudios.com
+gnome-extensions enable grayscale-toggle@webaheadstudios.com
 ```
 
 ### Graphics and Performance Issues
@@ -864,11 +878,11 @@ gsettings set org.gnome.shell.extensions.grayscale-toggle effect-quality 'low'
 
 ```bash
 # Disable extension from terminal
-gnome-extensions disable grayscale-toggle@luiz.dev
+gnome-extensions disable grayscale-toggle@webaheadstudios.com
 
 # If shell is unresponsive, use TTY
 # Press Ctrl+Alt+F2, login, then:
-DISPLAY=:0 gnome-extensions disable grayscale-toggle@luiz.dev
+DISPLAY=:0 gnome-extensions disable grayscale-toggle@webaheadstudios.com
 
 # Return to graphical session: Ctrl+Alt+F1 or F7
 ```
@@ -893,7 +907,7 @@ G_DEBUG=fatal-criticals journalctl -f -u gnome-shell@$(whoami).service
 
 ```bash
 # Disable the extension first
-gnome-extensions disable grayscale-toggle@luiz.dev
+gnome-extensions disable grayscale-toggle@webaheadstudios.com
 
 # Verify it's disabled
 gnome-extensions list --disabled | grep grayscale-toggle
@@ -903,7 +917,7 @@ gnome-extensions list --disabled | grep grayscale-toggle
 
 ```bash
 # Remove extension directory
-rm -rf ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev
+rm -rf ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com
 
 # Verify removal
 ls ~/.local/share/gnome-shell/extensions/ | grep grayscale
@@ -939,7 +953,7 @@ dconf reset -f /org/gnome/shell/extensions/grayscale-toggle/
 
 ```bash
 # Remove cache files
-rm -rf ~/.cache/gnome-shell/extensions/grayscale-toggle@luiz.dev/
+rm -rf ~/.cache/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com/
 
 # Clear any temporary files
 rm -f /tmp/*grayscale*
@@ -951,10 +965,10 @@ If you want to remove the extension but keep your settings:
 
 ```bash
 # Disable extension
-gnome-extensions disable grayscale-toggle@luiz.dev
+gnome-extensions disable grayscale-toggle@webaheadstudios.com
 
 # Remove extension files only
-rm -rf ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev
+rm -rf ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com
 
 # Keep schema and settings for future reinstallation
 # (Don't remove schema file or reset settings)
@@ -1009,7 +1023,7 @@ echo "Session: $XDG_SESSION_TYPE"
 echo "Graphics: $(lspci | grep VGA)"
 
 # Extension status
-echo "Extension installed: $(test -d ~/.local/share/gnome-shell/extensions/grayscale-toggle@luiz.dev && echo 'Yes' || echo 'No')"
+echo "Extension installed: $(test -d ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com && echo 'Yes' || echo 'No')"
 echo "Extension enabled: $(gnome-extensions list --enabled | grep -q grayscale-toggle && echo 'Yes' || echo 'No')"
 echo "Schema installed: $(gsettings list-schemas | grep -q grayscale-toggle && echo 'Yes' || echo 'No')"
 
@@ -1020,4 +1034,6 @@ journalctl --since="30 minutes ago" -u gnome-shell@$(whoami).service | grep -i e
 
 ---
 
-**Installation complete!** Check out the [User Guide](user-guide.md) for detailed usage instructions and the [Developer Guide](developer-guide.md) if you're interested in contributing to the project.
+**Installation complete!** Check out the [User Guide](user-guide.md) for
+detailed usage instructions and the [Developer Guide](developer-guide.md) if
+you're interested in contributing to the project.
