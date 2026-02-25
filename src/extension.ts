@@ -6,16 +6,16 @@
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
+import { EffectManager } from './effectManager.js';
+import { MonitorManager } from './monitorManager.js';
 import { SettingsController } from './settingsController.js';
 import { StateManager } from './stateManager.js';
-import { EffectManager } from './effectManager.js';
 import { UIController } from './uiController.js';
-import { MonitorManager } from './monitorManager.js';
 
 import type {
-    GrayscaleExtensionMetadata,
     ExtensionComponent,
     ExtensionManager,
+    GrayscaleExtensionMetadata,
 } from './types/extension.js';
 
 // Component constructor interface
@@ -38,11 +38,19 @@ interface ErrorHandler {
     handleError: (error: Error, context?: string) => void;
 }
 
+// Logger interface returned by Extension.getLogger()
+interface ExtensionLogger {
+    log: (msg: string) => void;
+    warn: (msg: string) => void;
+    error: (msg: string) => void;
+}
+
 export default class GrayscaleExtension extends Extension implements ExtensionManager {
     private _components: Map<string, ExtensionComponent>;
     private _initialized: boolean;
     private _errorHandler: ErrorHandler | null = null;
     private _signalConnections: SignalConnection[];
+    private _log: ExtensionLogger = (this as any).getLogger();
 
     declare metadata: GrayscaleExtensionMetadata;
 
@@ -55,9 +63,9 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
         this._signalConnections = [];
     }
 
-    enable(): void {
+    override enable(): void {
         try {
-            console.log(`[${this.metadata.name}] Enabling extension...`);
+            this._log.log('Enabling extension...');
 
             this._initializeErrorHandler();
             this._initializeComponents();
@@ -65,27 +73,27 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             this._loadInitialState();
 
             this._initialized = true;
-            console.log(`[${this.metadata.name}] Extension enabled successfully`);
+            this._log.log('Extension enabled successfully');
         } catch (error) {
             this._handleInitializationError(error as Error);
         }
     }
 
-    disable(): void {
+    override disable(): void {
         if (!this._initialized) {
             return;
         }
 
-        console.log(`[${this.metadata.name}] Disabling extension...`);
+        this._log.log('Disabling extension...');
 
         try {
             this._disconnectSignals();
             this._destroyComponents();
             this._initialized = false;
 
-            console.log(`[${this.metadata.name}] Extension disabled successfully`);
+            this._log.log('Extension disabled successfully');
         } catch (error) {
-            console.error(`[${this.metadata.name}] Error during disable:`, error);
+            this._log.error(`Error during disable: ${error}`);
         }
     }
 
@@ -115,9 +123,9 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             if (typeof component.enable === 'function') {
                 try {
                     component.enable();
-                    console.log(`[${this.metadata.name}] ${name} enabled`);
+                    this._log.log(`${name} enabled`);
                 } catch (error) {
-                    console.error(`[${this.metadata.name}] Failed to enable ${name}:`, error);
+                    this._log.error(`Failed to enable ${name}: ${error}`);
                 }
             }
         }
@@ -128,9 +136,9 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             if (typeof component.disable === 'function') {
                 try {
                     component.disable();
-                    console.log(`[${this.metadata.name}] ${name} disabled`);
+                    this._log.log(`${name} disabled`);
                 } catch (error) {
-                    console.error(`[${this.metadata.name}] Failed to disable ${name}:`, error);
+                    this._log.error(`Failed to disable ${name}: ${error}`);
                 }
             }
         }
@@ -138,7 +146,7 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
 
     // Component Management
     private _initializeComponents(): void {
-        console.log(`[${this.metadata.name}] Initializing components...`);
+        this._log.log('Initializing components...');
 
         // Component initialization in dependency order
         const componentOrder: ComponentDefinition[] = [
@@ -152,10 +160,10 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
         // Synchronous component creation
         for (const { name, class: ComponentClass } of componentOrder) {
             try {
-                console.log(`[${this.metadata.name}] Creating ${name}...`);
+                this._log.log(`Creating ${name}...`);
                 const instance = new ComponentClass(this);
                 this._components.set(name, instance);
-                console.log(`[${this.metadata.name}] ${name} created successfully`);
+                this._log.log(`${name} created successfully`);
             } catch (error) {
                 throw new Error(`Failed to create ${name}: ${(error as Error).message}`);
             }
@@ -168,7 +176,7 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
     }
 
     private async _initializeComponentsAsync(): Promise<void> {
-        console.log(`[${this.metadata.name}] Initializing components asynchronously...`);
+        this._log.log('Initializing components asynchronously...');
 
         const initOrder = [
             'SettingsController',
@@ -182,11 +190,9 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             const component = this._components.get(componentName);
             if (component && typeof component.enable === 'function') {
                 try {
-                    console.log(`[${this.metadata.name}] Initializing ${componentName}...`);
+                    this._log.log(`Initializing ${componentName}...`);
                     component.enable();
-                    console.log(
-                        `[${this.metadata.name}] ${componentName} initialized successfully`
-                    );
+                    this._log.log(`${componentName} initialized successfully`);
                 } catch (error) {
                     throw new Error(
                         `Failed to initialize ${componentName}: ${(error as Error).message}`
@@ -195,11 +201,11 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             }
         }
 
-        console.log(`[${this.metadata.name}] All components initialized successfully`);
+        this._log.log('All components initialized successfully');
     }
 
     private _destroyComponents(): void {
-        console.log(`[${this.metadata.name}] Destroying components...`);
+        this._log.log('Destroying components...');
 
         // Destroy in reverse order
         const destroyOrder = [
@@ -214,25 +220,22 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             const component = this._components.get(componentName);
             if (component && typeof component.disable === 'function') {
                 try {
-                    console.log(`[${this.metadata.name}] Destroying ${componentName}...`);
+                    this._log.log(`Destroying ${componentName}...`);
                     component.disable();
-                    console.log(`[${this.metadata.name}] ${componentName} destroyed successfully`);
+                    this._log.log(`${componentName} destroyed successfully`);
                 } catch (error) {
-                    console.warn(
-                        `[${this.metadata.name}] Error destroying ${componentName}:`,
-                        error
-                    );
+                    this._log.warn(`Error destroying ${componentName}: ${error}`);
                 }
             }
         }
 
         this._components.clear();
-        console.log(`[${this.metadata.name}] All components destroyed`);
+        this._log.log('All components destroyed');
     }
 
     // Signal Management
     private _connectSignals(): void {
-        console.log(`[${this.metadata.name}] Connecting signals...`);
+        this._log.log('Connecting signals...');
 
         try {
             // Connect to component signals for cross-component communication
@@ -241,9 +244,9 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             // Connect to GNOME Shell signals
             this._connectShellSignals();
 
-            console.log(`[${this.metadata.name}] Signals connected successfully`);
+            this._log.log('Signals connected successfully');
         } catch (error) {
-            console.error(`[${this.metadata.name}] Failed to connect signals:`, error);
+            this._log.error(`Failed to connect signals: ${error}`);
         }
     }
 
@@ -257,9 +260,9 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             // Connect state changes to effect applications
             const stateChangedId = (stateManager as any).connect(
                 'state-changed',
-                (manager: any, enabled: boolean, previous: boolean, options: any) => {
+                (manager: any, enabled: boolean, _previous: boolean, _options: any) => {
                     // Effect manager will handle this through its own signal connections
-                    console.log(`[${this.metadata.name}] State changed: ${enabled}`);
+                    this._log.log(`State changed: ${enabled}`);
                 }
             );
             this._signalConnections.push({ object: stateManager, id: stateChangedId });
@@ -270,7 +273,7 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             const toggleRequestedId = (uiController as any).connect(
                 'toggle-requested',
                 (controller: any, source: string) => {
-                    console.log(`[${this.metadata.name}] Toggle requested from ${source}`);
+                    this._log.log(`Toggle requested from ${source}`);
                 }
             );
             this._signalConnections.push({ object: uiController, id: toggleRequestedId });
@@ -281,8 +284,8 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             const effectAppliedId = (effectManager as any).connect(
                 'effect-applied',
                 (manager: any, monitorIndex: number, type: string, success: boolean) => {
-                    console.log(
-                        `[${this.metadata.name}] Effect applied: monitor ${monitorIndex}, type ${type}, success: ${success}`
+                    this._log.log(
+                        `Effect applied: monitor ${monitorIndex}, type ${type}, success: ${success}`
                     );
                 }
             );
@@ -293,13 +296,10 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             // Connect monitor changes to state synchronization
             const monitorAddedId = (monitorManager as any).connect(
                 'monitor-added',
-                (manager: any, monitorData: any) => {
-                    console.log(`[${this.metadata.name}] Monitor added`);
+                (_manager: any, _monitorData: any) => {
+                    this._log.log('Monitor added');
                     (stateManager as any).syncMonitorStates().catch((error: Error) => {
-                        console.error(
-                            `[${this.metadata.name}] Failed to sync monitor states:`,
-                            error
-                        );
+                        this._log.error(`Failed to sync monitor states: ${error}`);
                     });
                 }
             );
@@ -308,7 +308,7 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             const monitorRemovedId = (monitorManager as any).connect(
                 'monitor-removed',
                 (manager: any, monitorIndex: number) => {
-                    console.log(`[${this.metadata.name}] Monitor ${monitorIndex} removed`);
+                    this._log.log(`Monitor ${monitorIndex} removed`);
                     // State manager will preserve the monitor state for when it returns
                 }
             );
@@ -316,13 +316,10 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
 
             const monitorChangedId = (monitorManager as any).connect(
                 'monitor-changed',
-                (manager: any, monitorIndex: number, changeData: any) => {
-                    console.log(`[${this.metadata.name}] Monitor ${monitorIndex} changed`);
+                (manager: any, monitorIndex: number, _changeData: any) => {
+                    this._log.log(`Monitor ${monitorIndex} changed`);
                     (stateManager as any).syncMonitorStates().catch((error: Error) => {
-                        console.error(
-                            `[${this.metadata.name}] Failed to sync monitor states:`,
-                            error
-                        );
+                        this._log.error(`Failed to sync monitor states: ${error}`);
                     });
                 }
             );
@@ -330,13 +327,10 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
 
             const monitorsReconfiguredId = (monitorManager as any).connect(
                 'monitors-reconfigured',
-                (manager: any, reconfigData: any) => {
-                    console.log(`[${this.metadata.name}] Monitors reconfigured`);
+                (_manager: any, _reconfigData: any) => {
+                    this._log.log('Monitors reconfigured');
                     (stateManager as any).syncMonitorStates().catch((error: Error) => {
-                        console.error(
-                            `[${this.metadata.name}] Failed to sync monitor states:`,
-                            error
-                        );
+                        this._log.error(`Failed to sync monitor states: ${error}`);
                     });
                 }
             );
@@ -359,9 +353,7 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
     }
 
     private _disconnectSignals(): void {
-        console.log(
-            `[${this.metadata.name}] Disconnecting ${this._signalConnections.length} signals...`
-        );
+        this._log.log(`Disconnecting ${this._signalConnections.length} signals...`);
 
         for (const connection of this._signalConnections) {
             try {
@@ -369,37 +361,35 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
                     connection.object.disconnect(connection.id);
                 }
             } catch (error) {
-                console.warn(`[${this.metadata.name}] Failed to disconnect signal:`, error);
+                this._log.warn(`Failed to disconnect signal: ${error}`);
             }
         }
 
         this._signalConnections = [];
-        console.log(`[${this.metadata.name}] All signals disconnected`);
+        this._log.log('All signals disconnected');
     }
 
     // Event Handlers
     private _handleSessionModeChange(): void {
-        console.log(
-            `[${this.metadata.name}] Session mode changed: ${(Main.sessionMode as any).currentMode}`
-        );
+        this._log.log(`Session mode changed: ${(Main.sessionMode as any).currentMode}`);
 
         const effectManager = this.getComponent('EffectManager');
         if (effectManager) {
             // Suspend effects in lock screen or other restricted modes
             if ((Main.sessionMode as any).isLocked) {
                 (effectManager as any).suspendEffects().catch((error: Error) => {
-                    console.warn(`[${this.metadata.name}] Failed to suspend effects:`, error);
+                    this._log.warn(`Failed to suspend effects: ${error}`);
                 });
             } else {
                 (effectManager as any).resumeEffects().catch((error: Error) => {
-                    console.warn(`[${this.metadata.name}] Failed to resume effects:`, error);
+                    this._log.warn(`Failed to resume effects: ${error}`);
                 });
             }
         }
     }
 
     private _handleLegacyMonitorChange(): void {
-        console.log(`[${this.metadata.name}] Legacy monitor configuration changed`);
+        this._log.log('Legacy monitor configuration changed');
 
         // This is a fallback for cases where MonitorManager isn't available
         const monitorManager = this.getComponent('MonitorManager');
@@ -423,10 +413,7 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
                         force: true,
                     })
                     .catch((error: Error) => {
-                        console.warn(
-                            `[${this.metadata.name}] Failed to re-apply effect after monitor change:`,
-                            error
-                        );
+                        this._log.warn(`Failed to re-apply effect after monitor change: ${error}`);
                     });
             }
         }
@@ -434,7 +421,7 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
 
     // State Management
     private _loadInitialState(): void {
-        console.log(`[${this.metadata.name}] Loading initial state...`);
+        this._log.log('Loading initial state...');
 
         const settingsController = this.getComponent('SettingsController');
         const stateManager = this.getComponent('StateManager');
@@ -443,7 +430,7 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             // Load auto-enable setting
             const autoEnable = (settingsController as any).getSetting('auto-enable-on-startup');
             if (autoEnable) {
-                console.log(`[${this.metadata.name}] Auto-enable is active, enabling grayscale...`);
+                this._log.log('Auto-enable is active, enabling grayscale...');
 
                 // Delay auto-enable to allow all components to fully initialize
                 setTimeout(() => {
@@ -453,10 +440,7 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
                             animated: true,
                         })
                         .catch((error: Error) => {
-                            console.warn(
-                                `[${this.metadata.name}] Failed to auto-enable grayscale:`,
-                                error
-                            );
+                            this._log.warn(`Failed to auto-enable grayscale: ${error}`);
                         });
                 }, 1000);
             }
@@ -464,9 +448,7 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             // Load and restore previous session state
             const globalEnabled = (settingsController as any).getSetting('global-enabled');
             if (globalEnabled && !autoEnable) {
-                console.log(
-                    `[${this.metadata.name}] Restoring previous session state: ${globalEnabled}`
-                );
+                this._log.log(`Restoring previous session state: ${globalEnabled}`);
 
                 setTimeout(() => {
                     (stateManager as any)
@@ -475,10 +457,7 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
                             animated: false, // No animation on session restore
                         })
                         .catch((error: Error) => {
-                            console.warn(
-                                `[${this.metadata.name}] Failed to restore session state:`,
-                                error
-                            );
+                            this._log.warn(`Failed to restore session state: ${error}`);
                         });
                 }, 500);
             }
@@ -488,8 +467,8 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
     // Error Handling
     private _initializeErrorHandler(): void {
         this._errorHandler = {
-            handleError: (error: Error, context: string = 'unknown') => {
-                console.error(`[${this.metadata.name}] Error in ${context}:`, error);
+            handleError: (error: Error, context = 'unknown') => {
+                this._log.error(`Error in ${context}: ${error}`);
 
                 // Show user notification for critical errors
                 if ((error as any).category === 'critical') {
@@ -509,16 +488,13 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
     }
 
     private _handleInitializationError(error: Error): void {
-        console.error(`[${this.metadata.name}] Extension initialization failed:`, error);
+        this._log.error(`Extension initialization failed: ${error}`);
 
         // Try to cleanup any partially initialized state
         try {
             this._destroyComponents();
         } catch (cleanupError) {
-            console.error(
-                `[${this.metadata.name}] Cleanup after initialization failure also failed:`,
-                cleanupError
-            );
+            this._log.error(`Cleanup after initialization failure also failed: ${cleanupError}`);
         }
 
         // Show error notification
@@ -549,7 +525,7 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
     }
 
     dumpDebugInfo(): void {
-        console.log(`[${this.metadata.name}] === DEBUG INFO ===`);
+        this._log.log('=== DEBUG INFO ===');
         console.log('Extension initialized:', this._initialized);
         console.log('Components:', Array.from(this._components.keys()));
         console.log('Signal connections:', this._signalConnections.length);
@@ -566,6 +542,6 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             }
         }
 
-        console.log(`[${this.metadata.name}] === END DEBUG INFO ===`);
+        this._log.log('=== END DEBUG INFO ===');
     }
 }

@@ -18,7 +18,7 @@
         "noFallthroughCasesInSwitch": true,
         "noUncheckedIndexedAccess": false,
         "exactOptionalPropertyTypes": false,
-        "noImplicitOverride": false,
+        "noImplicitOverride": true,
         "useUnknownInCatchVariables": false,
         "alwaysStrict": true,
         "strictNullChecks": false,
@@ -40,18 +40,8 @@
         "allowImportingTsExtensions": false,
         "noEmit": true
     },
-    "include": [
-        "src/ambient.d.ts",
-        "src/**/*"
-    ],
-    "exclude": [
-        "node_modules",
-        "dist",
-        "build",
-        "src/tests/**/*",
-        "**/*.test.ts",
-        "**/*.spec.ts"
-    ],
+    "include": ["src/ambient.d.ts", "src/**/*"],
+    "exclude": ["node_modules", "dist", "build", "src/tests/**/*", "**/*.test.ts", "**/*.spec.ts"],
     "ts-node": {
         "esm": true
     }

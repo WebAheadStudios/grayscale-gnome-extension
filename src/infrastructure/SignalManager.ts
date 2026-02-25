@@ -208,7 +208,7 @@ export const SignalManager = GObject.registerClass(
             return this.connectSignal(object, signal, handler, { ...options, throttle: delay });
         }
 
-        disconnect(connectionId: number): boolean {
+        override disconnect(connectionId: number): boolean {
             const connection = this._connections.get(connectionId);
             if (!connection || !connection.active) {
                 return false;

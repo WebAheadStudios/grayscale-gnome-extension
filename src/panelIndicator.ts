@@ -404,7 +404,7 @@ export const GrayscalePanelButton = GObject.registerClass(
         /**
          * Cleanup resources
          */
-        destroy(): void {
+        override destroy(): void {
             // Remove from panel
             this._removeFromPanel();
 

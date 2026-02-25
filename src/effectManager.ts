@@ -5,6 +5,7 @@
 
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
+import { adjustAnimationTime } from 'resource:///org/gnome/shell/misc/animationUtils.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import type {
@@ -41,12 +42,6 @@ interface EffectOperation {
 interface AnimationSettings {
     duration: number;
     easing: Clutter.AnimationMode;
-}
-
-// Performance metrics
-interface PerformanceMetrics {
-    toggleTimes: number[];
-    errorCounts: Map<string, number>;
 }
 
 export const EffectManager = GObject.registerClass(
@@ -194,7 +189,7 @@ export const EffectManager = GObject.registerClass(
             }
         }
 
-        async toggleEffect(monitorIndex: number, config?: EffectConfig): Promise<void> {
+        async toggleEffect(monitorIndex: number, _config?: EffectConfig): Promise<void> {
             const isActive = this.isEffectActive(monitorIndex);
             await this.applyMonitorEffect(monitorIndex, !isActive);
         }
@@ -327,7 +322,7 @@ export const EffectManager = GObject.registerClass(
             }
 
             // Remove all monitor effects
-            for (const [monitorIndex, effect] of this._effects) {
+            for (const [monitorIndex, _effect] of this._effects) {
                 if (monitorIndex !== 'stage') {
                     removePromises.push(
                         this._removeMonitorEffect(parseInt(monitorIndex as string), {
@@ -346,7 +341,7 @@ export const EffectManager = GObject.registerClass(
         }
 
         // State Queries
-        isEffectActive(monitorIndex: number = -1): boolean {
+        isEffectActive(monitorIndex = -1): boolean {
             const key = monitorIndex === -1 ? 'stage' : monitorIndex.toString();
             return this._effects.has(key);
         }
@@ -367,7 +362,7 @@ export const EffectManager = GObject.registerClass(
 
             this._suspended = true;
 
-            for (const [key, effect] of this._effects) {
+            for (const [_key, effect] of this._effects) {
                 if (effect && effect.set_enabled) {
                     effect.set_enabled(false);
                 }
@@ -383,7 +378,7 @@ export const EffectManager = GObject.registerClass(
 
             this._suspended = false;
 
-            for (const [key, effect] of this._effects) {
+            for (const [_key, effect] of this._effects) {
                 if (effect && effect.set_enabled) {
                     effect.set_enabled(true);
                 }
@@ -536,7 +531,7 @@ export const EffectManager = GObject.registerClass(
                 if (animated && duration > 0) {
                     // Animate the desaturation factor from 0.0 to 1.0
                     (effect as any).ease_property('factor', 1.0, {
-                        duration: duration,
+                        duration: adjustAnimationTime(duration),
                         mode: this._animationSettings.easing,
                         onComplete: () => {
                             if (!skipEvents) {
@@ -579,7 +574,7 @@ export const EffectManager = GObject.registerClass(
                 if (animated && duration > 0) {
                     // Animate the desaturation factor from 1.0 to 0.0
                     (effect as any).ease_property('factor', 0.0, {
-                        duration: duration,
+                        duration: adjustAnimationTime(duration),
                         mode: this._animationSettings.easing,
                         onComplete: () => {
                             stage.remove_effect(effect);
@@ -660,7 +655,7 @@ export const EffectManager = GObject.registerClass(
                 if (animated && duration > 0) {
                     // Animate the desaturation
                     (effect as any).ease_property('factor', 1.0, {
-                        duration: duration,
+                        duration: adjustAnimationTime(duration),
                         mode: this._animationSettings.easing,
                         onComplete: () => {
                             if (!skipEvents) {
@@ -720,7 +715,7 @@ export const EffectManager = GObject.registerClass(
                 if (animated && duration > 0) {
                     // Animate the desaturation removal
                     (effect as any).ease_property('factor', 0.0, {
-                        duration: duration,
+                        duration: adjustAnimationTime(duration),
                         mode: this._animationSettings.easing,
                         onComplete: () => {
                             targetActor.remove_effect(effect);
@@ -779,7 +774,7 @@ export const EffectManager = GObject.registerClass(
                 const operation = this._effectQueue.shift()!;
 
                 try {
-                    let result: boolean = false;
+                    let result = false;
 
                     if (operation.type === 'global') {
                         result = await this._applyStageEffect(operation.enabled, operation.options);

@@ -64,11 +64,11 @@ export const GrayscaleQuickToggle = GObject.registerClass(
             return this;
         }
 
-        get label(): string {
+        override get label(): string {
             return this.title || '';
         }
 
-        get iconName(): string {
+        override get iconName(): string {
             return (this as any).icon_name || '';
         }
 
@@ -214,7 +214,7 @@ export const GrayscaleQuickToggle = GObject.registerClass(
         /**
          * Cleanup resources
          */
-        destroy(): void {
+        override destroy(): void {
             // Disconnect all signals
             this._signalIds.forEach(({ object, id }) => {
                 if (object && object.disconnect) {
@@ -299,7 +299,7 @@ export const GrayscaleIndicator = GObject.registerClass(
         /**
          * Cleanup resources
          */
-        destroy(): void {
+        override destroy(): void {
             // Disconnect signals
             if (this._stateSignalId) {
                 const stateManager = this._extension?.getComponent('StateManager');
