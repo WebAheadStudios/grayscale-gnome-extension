@@ -23,6 +23,7 @@ po/*.mo
 *.swo
 *~
 .DS_Store
+plans/
 
 # Node.js (if using any JS tooling)
 node_modules/
