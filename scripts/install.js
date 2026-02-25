@@ -161,11 +161,12 @@ function getExtensionStatus() {
 function enableExtension() {
     log(`Enabling extension ${EXTENSION_UUID}...`);
 
+    const windowManager = detectWindowManager();
+
     try {
         exec(`gnome-extensions enable ${EXTENSION_UUID}`);
         success('Extension enabled successfully');
 
-        const windowManager = detectWindowManager();
         if (windowManager === 'x11') {
             log('Restarting GNOME Shell...');
             try {
@@ -182,7 +183,16 @@ function enableExtension() {
             info('Or log out and log back in for the production session.');
         }
     } catch (err) {
-        error('Failed to enable extension:', err.message);
+        if (windowManager === 'wayland') {
+            warn('Could not enable extension in the current Wayland session (expected behaviour).');
+            warn('The extension is installed. To test it:');
+            warn('  1. Open a new terminal outside VS Code');
+            warn('  2. Run: npm run dev:nested');
+            warn('  3. Inside the nested shell, enable the extension:');
+            warn(`     gnome-extensions enable ${EXTENSION_UUID}`);
+        } else {
+            error('Failed to enable extension:', err.message);
+        }
     }
 }
 
@@ -288,11 +298,11 @@ function installExtension() {
         // Production installation via gnome-extensions install (gTile pattern)
         // This properly notifies GNOME Shell via D-Bus to load the new extension
         const tmpDir = mkdtempSync(join(tmpdir(), 'gnome-ext-'));
-        const archivePath = join(tmpDir, `${EXTENSION_UUID}.tgz`);
+        const archivePath = join(tmpDir, `${EXTENSION_UUID}.zip`);
 
         log('Creating extension archive...');
         try {
-            exec(`tar -czf "${archivePath}" -C "${DIST_DIR}" .`);
+            exec(`cd "${DIST_DIR}" && zip -r "${archivePath}" . -x "*.DS_Store" "*/.gitkeep"`);
             success(`Archive created: ${archivePath}`);
         } catch (err) {
             error(`Failed to create archive: ${err.message}`);
