@@ -1,6 +1,3 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 # Pre-commit hook for linting, formatting, and validation
 echo "🔍 Running pre-commit checks..."
 
