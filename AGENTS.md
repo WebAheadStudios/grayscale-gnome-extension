@@ -91,6 +91,49 @@ The `static [GObject.signals]` syntax does **NOT** register the GType and causes
 a runtime crash: `"Tried to construct an object without a GType"`. All
 GTypeNames in this project are prefixed with `Grayscale`.
 
+### Complete list of classes that require registerClass (verified 2026-02)
+
+**Main runtime path** (extension.ts → UIController chain):
+
+- `src/settingsController.ts` → `GrayscaleSettingsController`
+- `src/stateManager.ts` → `GrayscaleStateManager`
+- `src/effectManager.ts` → `GrayscaleEffectManager`
+- `src/monitorManager.ts` → `GrayscaleMonitorManager`
+- `src/uiController.ts` → `GrayscaleUIController`
+- `src/panelIndicator.ts` → `GrayscalePanelButton` (extends `Button`)
+- `src/quickSettingsIntegration.ts` → `GrayscaleQuickToggle` (extends
+  `QuickToggle`)
+- `src/quickSettingsIntegration.ts` → `GrayscaleSystemIndicator` (extends
+  `SystemIndicator`)
+
+**Infrastructure** (used by EnhancedEffectManager):
+
+- `src/infrastructure/BaseComponent.ts` → `GrayscaleBaseComponent`
+- `src/infrastructure/SignalManager.ts` → `GrayscaleSignalManager`
+- `src/infrastructure/ComponentRegistry.ts` → `GrayscaleComponentRegistry`
+- `src/infrastructure/Logger.ts` → `GrayscaleLogger`
+- `src/infrastructure/ErrorBoundary.ts` → `GrayscaleErrorBoundary`
+- `src/infrastructure/ConfigCache.ts` → `GrayscaleConfigCache`
+- `src/infrastructure/PerformanceMonitor.ts` → `GrayscalePerformanceMonitor`
+- `src/infrastructure/EffectPool.ts` → `GrayscaleEffectPool`
+- `src/enhanced/EnhancedEffectManager.ts` → `GrayscaleEnhancedEffectManager`
+
+### Key rules
+
+- Subclasses of GNOME Shell UI types (`QuickToggle`, `SystemIndicator`,
+  `PanelMenu.Button`) **also** require `registerClass` — not just
+  `GObject.Object` subclasses.
+- When converting from the old pattern, move `static [GObject.signals]` into the
+  `Signals:` object inside `registerClass`, then export a companion type alias:
+    ```typescript
+    export const Foo = GObject.registerClass({ GTypeName: 'GrayscaleFoo', Signals: {...} }, class Foo extends GObject.Object {...});
+    // eslint-disable-next-line @typescript-eslint/no-redeclare
+    export type Foo = InstanceType<typeof Foo>;  // preserves class-as-type semantics
+    ```
+- The only acceptable use of `static [GObject.signals]` is inside anonymous
+  inline classes used as **Jest test mocks** (e.g.
+  `src/tests/ArchitectureValidator.ts`), since Jest mocks don't run in GJS.
+
 ## TypeScript Runtime Configuration
 
 `tsconfig.runtime.json` **MUST** set `"useDefineForClassFields": false`. This

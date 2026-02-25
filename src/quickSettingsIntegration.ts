@@ -3,13 +3,12 @@
  * Provides modern Quick Settings toggle for grayscale mode
  */
 
-import { QuickToggle, SystemIndicator } from 'resource:///org/gnome/shell/ui/quickSettings.js';
-import * as QuickSettings from 'resource:///org/gnome/shell/ui/quickSettings.js';
 import GObject from 'gi://GObject';
-import Gio from 'gi://Gio';
+import * as QuickSettings from 'resource:///org/gnome/shell/ui/quickSettings.js';
+import { QuickToggle, SystemIndicator } from 'resource:///org/gnome/shell/ui/quickSettings.js';
 
-import type { QuickSettingsToggle, UIController as IUIController } from './types/ui.js';
 import type { ExtensionComponent } from './types/extension.js';
+import type { QuickSettingsToggle } from './types/ui.js';
 
 // Simple gettext placeholder
 const _ = (str: string): string => str;
@@ -31,298 +30,304 @@ interface SignalConnection {
  * Grayscale Quick Toggle
  * Modern toggle following GNOME Shell 46+ patterns
  */
-export class GrayscaleQuickToggle extends QuickToggle implements QuickSettingsToggle {
-    private _extension: Extension;
-    private _stateManager: any = null;
-    private _effectManager: any = null;
-    private _settings: any = null;
-    private _signalIds: SignalConnection[];
+export const GrayscaleQuickToggle = GObject.registerClass(
+    { GTypeName: 'GrayscaleQuickToggle' },
+    class GrayscaleQuickToggle extends QuickToggle implements QuickSettingsToggle {
+        private _extension: Extension;
+        private _stateManager: any = null;
+        private _effectManager: any = null;
+        private _settings: any = null;
+        private _signalIds: SignalConnection[];
 
-    constructor(extension: Extension) {
-        super({
-            title: _('Grayscale'),
-            iconName: 'applications-graphics-symbolic',
-            toggleMode: true,
-        });
+        constructor(extension: Extension) {
+            super({
+                title: _('Grayscale'),
+                iconName: 'applications-graphics-symbolic',
+                toggleMode: true,
+            });
 
-        this._extension = extension;
-        this._stateManager = null;
-        this._effectManager = null;
-        this._settings = null;
-        this._signalIds = [];
+            this._extension = extension;
+            this._stateManager = null;
+            this._effectManager = null;
+            this._settings = null;
+            this._signalIds = [];
 
-        // Connect the toggle activation
-        this.connect('clicked', this._onToggleClicked.bind(this));
+            // Connect the toggle activation
+            this.connect('clicked', this._onToggleClicked.bind(this));
 
-        // Initialize state synchronization
-        this._connectToExtension();
-    }
-
-    // QuickSettingsToggle interface implementation
-    get actor(): any {
-        return this;
-    }
-
-    get label(): string {
-        return this.title || '';
-    }
-
-    get iconName(): string {
-        return (this as any).icon_name || '';
-    }
-
-    get checked(): boolean {
-        return (this as any).checked || false;
-    }
-
-    toggle(): void {
-        this._onToggleClicked();
-    }
-
-    setChecked(checked: boolean): void {
-        (this as any).checked = checked;
-    }
-
-    setLabel(label: string): void {
-        this.title = label;
-    }
-
-    setIcon(iconName: string): void {
-        (this as any).iconName = iconName;
-    }
-
-    /**
-     * Connect to extension components
-     */
-    private _connectToExtension(): void {
-        if (!this._extension) {
-            console.warn('[Grayscale] Extension object not available for Quick Settings');
-            return;
+            // Initialize state synchronization
+            this._connectToExtension();
         }
 
-        this._stateManager = this._extension.getComponent('StateManager');
-        this._effectManager = this._extension.getComponent('EffectManager');
-        this._settings = this._extension.getSettings();
-
-        if (this._stateManager) {
-            const signalId = this._stateManager.connect(
-                'state-changed',
-                this._onExtensionStateChanged.bind(this)
-            );
-            this._signalIds.push({ object: this._stateManager, id: signalId });
+        // QuickSettingsToggle interface implementation
+        get actor(): any {
+            return this;
         }
 
-        if (this._settings) {
-            const signalId = this._settings.connect(
-                'changed::global-enabled',
-                this._onGlobalSettingsChanged.bind(this)
-            );
-            this._signalIds.push({ object: this._settings, id: signalId });
+        get label(): string {
+            return this.title || '';
         }
 
-        // Initial state sync
-        this._syncState();
-    }
-
-    /**
-     * Handle toggle click
-     */
-    private _onToggleClicked(): void {
-        if (!this._stateManager || !this._effectManager) {
-            console.warn('[Grayscale] Extension components not available');
-            return;
+        get iconName(): string {
+            return (this as any).icon_name || '';
         }
 
-        try {
-            const currentState = this._stateManager.getGrayscaleState();
+        get checked(): boolean {
+            return (this as any).checked || false;
+        }
 
-            // Toggle state
-            this._stateManager.setGrayscaleState(!currentState, { source: 'quick-settings' });
+        toggle(): void {
+            this._onToggleClicked();
+        }
 
-            // Update UI state
+        setChecked(checked: boolean): void {
+            (this as any).checked = checked;
+        }
+
+        setLabel(label: string): void {
+            this.title = label;
+        }
+
+        setIcon(iconName: string): void {
+            (this as any).iconName = iconName;
+        }
+
+        /**
+         * Connect to extension components
+         */
+        private _connectToExtension(): void {
+            if (!this._extension) {
+                console.warn('[Grayscale] Extension object not available for Quick Settings');
+                return;
+            }
+
+            this._stateManager = this._extension.getComponent('StateManager');
+            this._effectManager = this._extension.getComponent('EffectManager');
+            this._settings = this._extension.getSettings();
+
+            if (this._stateManager) {
+                const signalId = this._stateManager.connect(
+                    'state-changed',
+                    this._onExtensionStateChanged.bind(this)
+                );
+                this._signalIds.push({ object: this._stateManager, id: signalId });
+            }
+
+            if (this._settings) {
+                const signalId = this._settings.connect(
+                    'changed::global-enabled',
+                    this._onGlobalSettingsChanged.bind(this)
+                );
+                this._signalIds.push({ object: this._settings, id: signalId });
+            }
+
+            // Initial state sync
             this._syncState();
-        } catch (error) {
-            console.error('[Grayscale] Error handling Quick Settings toggle:', error);
-        }
-    }
-
-    /**
-     * Handle extension state changes
-     */
-    private _onExtensionStateChanged(): void {
-        this._syncState();
-    }
-
-    /**
-     * Handle global settings changes
-     */
-    private _onGlobalSettingsChanged(): void {
-        this._syncState();
-    }
-
-    /**
-     * Synchronize toggle state with extension state
-     */
-    private _syncState(): void {
-        if (!this._stateManager) {
-            (this as any).checked = false;
-            (this as any).reactive = false;
-            return;
         }
 
-        try {
-            const globalState = this._stateManager.getGrayscaleState();
-            const isEnabled = this._settings?.get_boolean('global-enabled') ?? true;
-
-            // Update toggle state
-            (this as any).checked = globalState;
-            (this as any).reactive = isEnabled;
-
-            // Update subtitle with current status
-            this._updateSubtitle();
-        } catch (error) {
-            console.error('[Grayscale] Error syncing Quick Settings state:', error);
-            (this as any).checked = false;
-            (this as any).reactive = false;
-        }
-    }
-
-    /**
-     * Update subtitle with current status information
-     */
-    private _updateSubtitle(): void {
-        if (!this._stateManager) {
-            (this as any).subtitle = _('Unavailable');
-            return;
-        }
-
-        try {
-            const monitors = this._stateManager.getAllMonitorStates() || {};
-            const activeCount = Object.values(monitors).filter(state => state).length;
-            const totalCount = Object.keys(monitors).length;
-
-            if (activeCount === 0) {
-                (this as any).subtitle = _('Disabled');
-            } else if (activeCount === totalCount) {
-                (this as any).subtitle = _('All monitors');
-            } else {
-                (this as any).subtitle = `${activeCount}/${totalCount} monitors`;
+        /**
+         * Handle toggle click
+         */
+        private _onToggleClicked(): void {
+            if (!this._stateManager || !this._effectManager) {
+                console.warn('[Grayscale] Extension components not available');
+                return;
             }
-        } catch (error) {
-            console.error('[Grayscale] Error updating subtitle:', error);
-            (this as any).subtitle = (this as any).checked ? _('Active') : _('Inactive');
+
+            try {
+                const currentState = this._stateManager.getGrayscaleState();
+
+                // Toggle state
+                this._stateManager.setGrayscaleState(!currentState, { source: 'quick-settings' });
+
+                // Update UI state
+                this._syncState();
+            } catch (error) {
+                console.error('[Grayscale] Error handling Quick Settings toggle:', error);
+            }
+        }
+
+        /**
+         * Handle extension state changes
+         */
+        private _onExtensionStateChanged(): void {
+            this._syncState();
+        }
+
+        /**
+         * Handle global settings changes
+         */
+        private _onGlobalSettingsChanged(): void {
+            this._syncState();
+        }
+
+        /**
+         * Synchronize toggle state with extension state
+         */
+        private _syncState(): void {
+            if (!this._stateManager) {
+                (this as any).checked = false;
+                (this as any).reactive = false;
+                return;
+            }
+
+            try {
+                const globalState = this._stateManager.getGrayscaleState();
+                const isEnabled = this._settings?.get_boolean('global-enabled') ?? true;
+
+                // Update toggle state
+                (this as any).checked = globalState;
+                (this as any).reactive = isEnabled;
+
+                // Update subtitle with current status
+                this._updateSubtitle();
+            } catch (error) {
+                console.error('[Grayscale] Error syncing Quick Settings state:', error);
+                (this as any).checked = false;
+                (this as any).reactive = false;
+            }
+        }
+
+        /**
+         * Update subtitle with current status information
+         */
+        private _updateSubtitle(): void {
+            if (!this._stateManager) {
+                (this as any).subtitle = _('Unavailable');
+                return;
+            }
+
+            try {
+                const monitors = this._stateManager.getAllMonitorStates() || {};
+                const activeCount = Object.values(monitors).filter(state => state).length;
+                const totalCount = Object.keys(monitors).length;
+
+                if (activeCount === 0) {
+                    (this as any).subtitle = _('Disabled');
+                } else if (activeCount === totalCount) {
+                    (this as any).subtitle = _('All monitors');
+                } else {
+                    (this as any).subtitle = `${activeCount}/${totalCount} monitors`;
+                }
+            } catch (error) {
+                console.error('[Grayscale] Error updating subtitle:', error);
+                (this as any).subtitle = (this as any).checked ? _('Active') : _('Inactive');
+            }
+        }
+
+        /**
+         * Cleanup resources
+         */
+        destroy(): void {
+            // Disconnect all signals
+            this._signalIds.forEach(({ object, id }) => {
+                if (object && object.disconnect) {
+                    object.disconnect(id);
+                }
+            });
+            this._signalIds = [];
+
+            // Clear references
+            this._extension = null as any;
+            this._stateManager = null;
+            this._effectManager = null;
+            this._settings = null;
+
+            super.destroy();
         }
     }
-
-    /**
-     * Cleanup resources
-     */
-    destroy(): void {
-        // Disconnect all signals
-        this._signalIds.forEach(({ object, id }) => {
-            if (object && object.disconnect) {
-                object.disconnect(id);
-            }
-        });
-        this._signalIds = [];
-
-        // Clear references
-        this._extension = null as any;
-        this._stateManager = null;
-        this._effectManager = null;
-        this._settings = null;
-
-        super.destroy();
-    }
-}
+);
 
 /**
  * Grayscale System Indicator
  * Integrates the toggle into the Quick Settings panel
  */
-export class GrayscaleIndicator extends SystemIndicator {
-    private _extension: Extension;
-    private _stateSignalId: number | null = null;
-    private _indicator: any;
+export const GrayscaleIndicator = GObject.registerClass(
+    { GTypeName: 'GrayscaleSystemIndicator' },
+    class GrayscaleIndicator extends SystemIndicator {
+        private _extension: Extension;
+        private _stateSignalId: number | null = null;
+        private _indicator: any;
 
-    constructor(extension: Extension) {
-        super();
+        constructor(extension: Extension) {
+            super();
 
-        this._extension = extension;
+            this._extension = extension;
 
-        // Initialize the inherited quickSettingsItems array
-        this.quickSettingsItems = [];
+            // Initialize the inherited quickSettingsItems array
+            this.quickSettingsItems = [];
 
-        // Create and add the quick toggle
-        this._indicator = this._addIndicator();
-        this._indicator.iconName = 'applications-graphics-symbolic';
+            // Create and add the quick toggle
+            this._indicator = this._addIndicator();
+            this._indicator.iconName = 'applications-graphics-symbolic';
 
-        this.quickSettingsItems.push(new GrayscaleQuickToggle(extension));
+            this.quickSettingsItems.push(new GrayscaleQuickToggle(extension));
 
-        // Connect to state changes for indicator visibility
-        this._connectStateSignals();
-        this._updateIndicatorVisibility();
-    }
-
-    /**
-     * Connect to state management signals
-     */
-    private _connectStateSignals(): void {
-        const stateManager = this._extension?.getComponent('StateManager');
-        if (stateManager) {
-            this._stateSignalId = stateManager.connect(
-                'state-changed',
-                this._updateIndicatorVisibility.bind(this)
-            );
-        }
-    }
-
-    /**
-     * Update indicator visibility based on state
-     */
-    private _updateIndicatorVisibility(): void {
-        const stateManager = this._extension?.getComponent('StateManager');
-        if (!stateManager) {
-            this._indicator.visible = false;
-            return;
+            // Connect to state changes for indicator visibility
+            this._connectStateSignals();
+            this._updateIndicatorVisibility();
         }
 
-        try {
-            const globalState = stateManager.getGrayscaleState();
-            this._indicator.visible = globalState;
-        } catch (error) {
-            console.error('[Grayscale] Error updating indicator visibility:', error);
-            this._indicator.visible = false;
-        }
-    }
-
-    /**
-     * Cleanup resources
-     */
-    destroy(): void {
-        // Disconnect signals
-        if (this._stateSignalId) {
+        /**
+         * Connect to state management signals
+         */
+        private _connectStateSignals(): void {
             const stateManager = this._extension?.getComponent('StateManager');
             if (stateManager) {
-                stateManager.disconnect(this._stateSignalId);
-                this._stateSignalId = null;
+                this._stateSignalId = stateManager.connect(
+                    'state-changed',
+                    this._updateIndicatorVisibility.bind(this)
+                );
             }
         }
 
-        // Destroy quick settings items
-        this.quickSettingsItems.forEach(item => {
-            if (item.destroy) {
-                item.destroy();
+        /**
+         * Update indicator visibility based on state
+         */
+        private _updateIndicatorVisibility(): void {
+            const stateManager = this._extension?.getComponent('StateManager');
+            if (!stateManager) {
+                this._indicator.visible = false;
+                return;
             }
-        });
-        this.quickSettingsItems = [];
 
-        // Clear references
-        this._extension = null as any;
+            try {
+                const globalState = stateManager.getGrayscaleState();
+                this._indicator.visible = globalState;
+            } catch (error) {
+                console.error('[Grayscale] Error updating indicator visibility:', error);
+                this._indicator.visible = false;
+            }
+        }
 
-        super.destroy();
+        /**
+         * Cleanup resources
+         */
+        destroy(): void {
+            // Disconnect signals
+            if (this._stateSignalId) {
+                const stateManager = this._extension?.getComponent('StateManager');
+                if (stateManager) {
+                    stateManager.disconnect(this._stateSignalId);
+                    this._stateSignalId = null;
+                }
+            }
+
+            // Destroy quick settings items
+            this.quickSettingsItems.forEach(item => {
+                if (item.destroy) {
+                    item.destroy();
+                }
+            });
+            this.quickSettingsItems = [];
+
+            // Clear references
+            this._extension = null as any;
+
+            super.destroy();
+        }
     }
-}
+);
 
 /**
  * Quick Settings Integration Manager
@@ -330,7 +335,7 @@ export class GrayscaleIndicator extends SystemIndicator {
  */
 export class QuickSettingsIntegration implements ExtensionComponent {
     private _extension: Extension;
-    private _indicator: GrayscaleIndicator | null = null;
+    private _indicator: InstanceType<typeof GrayscaleIndicator> | null = null;
     private _enabled: boolean;
 
     constructor(extension: Extension) {
@@ -431,7 +436,7 @@ export class QuickSettingsIntegration implements ExtensionComponent {
     /**
      * Get the current indicator instance
      */
-    get indicator(): GrayscaleIndicator | null {
+    get indicator(): InstanceType<typeof GrayscaleIndicator> | null {
         return this._indicator;
     }
 }

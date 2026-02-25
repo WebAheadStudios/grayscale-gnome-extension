@@ -3,8 +3,8 @@
  * Prevents cascade failures and provides graceful degradation strategies
  */
 
-import GObject from 'gi://GObject';
 import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
 
 // Error severity levels
 export enum ErrorSeverity {
@@ -100,12 +100,12 @@ enum CircuitState {
 // Circuit breaker
 class CircuitBreaker {
     private _state: CircuitState = CircuitState.Closed;
-    private _failures: number = 0;
-    private _lastFailureTime: number = 0;
+    private _failures = 0;
+    private _lastFailureTime = 0;
     private _threshold: number;
     private _timeout: number;
 
-    constructor(threshold: number = 5, timeout: number = 60000) {
+    constructor(threshold = 5, timeout = 60000) {
         this._threshold = threshold;
         this._timeout = timeout;
     }
@@ -147,379 +147,405 @@ class CircuitBreaker {
     }
 }
 
-export class ErrorBoundary extends GObject.Object {
-    static [GObject.signals] = {
-        'error-caught': {
-            param_types: [GObject.TYPE_VARIANT], // BoundaryError
+export const ErrorBoundary = GObject.registerClass(
+    {
+        GTypeName: 'GrayscaleErrorBoundary',
+        Signals: {
+            'error-caught': {
+                param_types: [GObject.TYPE_VARIANT], // BoundaryError
+            },
+            'recovery-attempted': {
+                param_types: [GObject.TYPE_STRING, GObject.TYPE_STRING], // errorId, strategy
+            },
+            'recovery-succeeded': {
+                param_types: [GObject.TYPE_STRING, GObject.TYPE_VARIANT], // errorId, result
+            },
+            'recovery-failed': {
+                param_types: [GObject.TYPE_STRING, GObject.TYPE_VARIANT], // errorId, result
+            },
+            'circuit-breaker-opened': {
+                param_types: [GObject.TYPE_STRING], // component
+            },
+            'circuit-breaker-closed': {
+                param_types: [GObject.TYPE_STRING], // component
+            },
+            'degraded-mode-activated': {
+                param_types: [GObject.TYPE_STRING], // component
+            },
         },
-        'recovery-attempted': {
-            param_types: [GObject.TYPE_STRING, GObject.TYPE_STRING], // errorId, strategy
-        },
-        'recovery-succeeded': {
-            param_types: [GObject.TYPE_STRING, GObject.TYPE_VARIANT], // errorId, result
-        },
-        'recovery-failed': {
-            param_types: [GObject.TYPE_STRING, GObject.TYPE_VARIANT], // errorId, result
-        },
-        'circuit-breaker-opened': {
-            param_types: [GObject.TYPE_STRING], // component
-        },
-        'circuit-breaker-closed': {
-            param_types: [GObject.TYPE_STRING], // component
-        },
-        'degraded-mode-activated': {
-            param_types: [GObject.TYPE_STRING], // component
-        },
-    };
+    },
+    class ErrorBoundary extends GObject.Object {
+        private _config: Required<ErrorHandlerConfig>;
+        private _errors: Map<string, BoundaryError> = new Map();
+        private _errorHistory: BoundaryError[] = [];
+        private _circuitBreakers: Map<string, CircuitBreaker> = new Map();
+        private _degradedComponents: Set<string> = new Set();
+        private _isolatedComponents: Set<string> = new Set();
+        private _recoveryActions: Map<ErrorCategory, RecoveryAction> = new Map();
+        private _nextErrorId = 1;
+        private _logger: any = null;
 
-    private _config: Required<ErrorHandlerConfig>;
-    private _errors: Map<string, BoundaryError> = new Map();
-    private _errorHistory: BoundaryError[] = [];
-    private _circuitBreakers: Map<string, CircuitBreaker> = new Map();
-    private _degradedComponents: Set<string> = new Set();
-    private _isolatedComponents: Set<string> = new Set();
-    private _recoveryActions: Map<ErrorCategory, RecoveryAction> = new Map();
-    private _nextErrorId: number = 1;
-    private _logger: any = null;
+        constructor(config: ErrorHandlerConfig = {}) {
+            super();
 
-    constructor(config: ErrorHandlerConfig = {}) {
-        super();
+            this._config = {
+                maxErrors: 100,
+                timeWindow: 300000, // 5 minutes
+                retryDelay: 1000,
+                maxRetries: 3,
+                enableCircuitBreaker: true,
+                circuitBreakerThreshold: 5,
+                circuitBreakerTimeout: 60000,
+                enableReporting: true,
+                ...config,
+            };
 
-        this._config = {
-            maxErrors: 100,
-            timeWindow: 300000, // 5 minutes
-            retryDelay: 1000,
-            maxRetries: 3,
-            enableCircuitBreaker: true,
-            circuitBreakerThreshold: 5,
-            circuitBreakerTimeout: 60000,
-            enableReporting: true,
-            ...config,
-        };
+            this._setupDefaultRecoveryActions();
+        }
 
-        this._setupDefaultRecoveryActions();
-    }
+        // Public API
+        async catch<T>(
+            operation: () => Promise<T> | T,
+            context: Partial<ErrorContext> = {},
+            recoveryAction?: RecoveryAction
+        ): Promise<T | null> {
+            const fullContext: ErrorContext = {
+                timestamp: Date.now(),
+                ...context,
+            };
 
-    // Public API
-    async catch<T>(
-        operation: () => Promise<T> | T,
-        context: Partial<ErrorContext> = {},
-        recoveryAction?: RecoveryAction
-    ): Promise<T | null> {
-        const fullContext: ErrorContext = {
-            timestamp: Date.now(),
-            ...context,
-        };
+            try {
+                // Check circuit breaker
+                if (context.component && this._config.enableCircuitBreaker) {
+                    const breaker = this._getCircuitBreaker(context.component);
+                    if (!breaker.canExecute()) {
+                        throw new Error(
+                            `Circuit breaker is open for component: ${context.component}`
+                        );
+                    }
+                }
 
-        try {
-            // Check circuit breaker
-            if (context.component && this._config.enableCircuitBreaker) {
-                const breaker = this._getCircuitBreaker(context.component);
-                if (!breaker.canExecute()) {
-                    throw new Error(`Circuit breaker is open for component: ${context.component}`);
+                // Execute operation
+                const result = await Promise.resolve(operation());
+
+                // Mark success for circuit breaker
+                if (context.component && this._config.enableCircuitBreaker) {
+                    this._getCircuitBreaker(context.component).onSuccess();
+                }
+
+                return result;
+            } catch (error) {
+                return await this._handleError(error as Error, fullContext, recoveryAction);
+            }
+        }
+
+        wrapFunction<TArgs extends any[], TReturn>(
+            fn: (...args: TArgs) => TReturn | Promise<TReturn>,
+            context: Partial<ErrorContext> = {},
+            recoveryAction?: RecoveryAction
+        ): (...args: TArgs) => Promise<TReturn | null> {
+            return async (...args: TArgs): Promise<TReturn | null> => {
+                return this.catch(() => fn(...args), context, recoveryAction);
+            };
+        }
+
+        // Configuration
+        setRecoveryAction(category: ErrorCategory, action: RecoveryAction): void {
+            this._recoveryActions.set(category, action);
+        }
+
+        getRecoveryAction(category: ErrorCategory): RecoveryAction | null {
+            return this._recoveryActions.get(category) || null;
+        }
+
+        // Component management
+        isComponentDegraded(component: string): boolean {
+            return this._degradedComponents.has(component);
+        }
+
+        isComponentIsolated(component: string): boolean {
+            return this._isolatedComponents.has(component);
+        }
+
+        activateDegradedMode(component: string): void {
+            if (!this._degradedComponents.has(component)) {
+                this._degradedComponents.add(component);
+                this.emit('degraded-mode-activated', component);
+                this._log('warn', `Activated degraded mode for component: ${component}`);
+            }
+        }
+
+        deactivateDegradedMode(component: string): void {
+            if (this._degradedComponents.delete(component)) {
+                this._log('info', `Deactivated degraded mode for component: ${component}`);
+            }
+        }
+
+        isolateComponent(component: string): void {
+            if (!this._isolatedComponents.has(component)) {
+                this._isolatedComponents.add(component);
+                this._log('warn', `Isolated component due to repeated failures: ${component}`);
+            }
+        }
+
+        restoreComponent(component: string): void {
+            this._isolatedComponents.delete(component);
+            this._degradedComponents.delete(component);
+
+            // Reset circuit breaker
+            if (this._circuitBreakers.has(component)) {
+                this._circuitBreakers.delete(component);
+            }
+
+            this._log('info', `Restored component: ${component}`);
+        }
+
+        // Error inspection
+        getError(errorId: string): BoundaryError | null {
+            return this._errors.get(errorId) || null;
+        }
+
+        getErrorHistory(component?: string): BoundaryError[] {
+            if (component) {
+                return this._errorHistory.filter(e => e.context.component === component);
+            }
+            return [...this._errorHistory];
+        }
+
+        getCriticalErrors(): BoundaryError[] {
+            return this._errorHistory.filter(e => e.severity === ErrorSeverity.Critical);
+        }
+
+        getComponentStats(component: string): {
+            totalErrors: number;
+            recoveredErrors: number;
+            activeErrors: number;
+            circuitBreakerState?: CircuitState;
+        } {
+            const errors = this._errorHistory.filter(e => e.context.component === component);
+            const activeErrors = Array.from(this._errors.values()).filter(
+                e => e.context.component === component && !e.recovered
+            );
+
+            const breaker = this._circuitBreakers.get(component);
+
+            return {
+                totalErrors: errors.length,
+                recoveredErrors: errors.filter(e => e.recovered).length,
+                activeErrors: activeErrors.length,
+                circuitBreakerState: breaker?.state,
+            };
+        }
+
+        // Lifecycle
+        cleanup(): void {
+            const now = Date.now();
+            const cutoff = now - this._config.timeWindow;
+
+            // Remove old errors
+            const oldErrors = this._errorHistory.filter(e => e.context.timestamp < cutoff);
+            this._errorHistory = this._errorHistory.filter(e => e.context.timestamp >= cutoff);
+
+            // Clean up resolved errors from active map
+            for (const [id, error] of this._errors.entries()) {
+                if (error.recovered || error.context.timestamp < cutoff) {
+                    this._errors.delete(id);
                 }
             }
 
-            // Execute operation
-            const result = await Promise.resolve(operation());
+            this._log('debug', `Cleaned up ${oldErrors.length} old errors`);
+        }
 
-            // Mark success for circuit breaker
+        destroy(): void {
+            this._errors.clear();
+            this._errorHistory = [];
+            this._circuitBreakers.clear();
+            this._degradedComponents.clear();
+            this._isolatedComponents.clear();
+            this._recoveryActions.clear();
+
+            this._log('info', 'ErrorBoundary destroyed');
+        }
+
+        setLogger(logger: any): void {
+            this._logger = logger;
+        }
+
+        // Private methods
+        private async _handleError(
+            error: Error,
+            context: ErrorContext,
+            recoveryAction?: RecoveryAction
+        ): Promise<any> {
+            const boundaryError = this._createBoundaryError(error, context);
+
+            // Store error
+            this._errors.set(boundaryError.id, boundaryError);
+            this._errorHistory.push(boundaryError);
+
+            // Emit error event
+            this.emit('error-caught', boundaryError);
+
+            // Update circuit breaker
             if (context.component && this._config.enableCircuitBreaker) {
-                this._getCircuitBreaker(context.component).onSuccess();
+                const breaker = this._getCircuitBreaker(context.component);
+                breaker.onFailure();
+
+                if (breaker.state === CircuitState.Open) {
+                    this.emit('circuit-breaker-opened', context.component);
+                }
             }
 
-            return result;
-        } catch (error) {
-            return await this._handleError(error as Error, fullContext, recoveryAction);
-        }
-    }
+            // Determine recovery strategy
+            const action =
+                recoveryAction ||
+                this._recoveryActions.get(boundaryError.category) ||
+                this._getDefaultRecoveryAction(boundaryError);
 
-    wrapFunction<TArgs extends any[], TReturn>(
-        fn: (...args: TArgs) => TReturn | Promise<TReturn>,
-        context: Partial<ErrorContext> = {},
-        recoveryAction?: RecoveryAction
-    ): (...args: TArgs) => Promise<TReturn | null> {
-        return async (...args: TArgs): Promise<TReturn | null> => {
-            return this.catch(() => fn(...args), context, recoveryAction);
-        };
-    }
+            // Attempt recovery
+            const recoveryResult = await this._attemptRecovery(boundaryError, action);
 
-    // Configuration
-    setRecoveryAction(category: ErrorCategory, action: RecoveryAction): void {
-        this._recoveryActions.set(category, action);
-    }
+            if (recoveryResult.success) {
+                boundaryError.recovered = true;
+                this.emit('recovery-succeeded', boundaryError.id, recoveryResult);
+                this._log('info', `Successfully recovered from error ${boundaryError.id}`);
+            } else {
+                this.emit('recovery-failed', boundaryError.id, recoveryResult);
+                this._log(
+                    'error',
+                    `Failed to recover from error ${boundaryError.id}`,
+                    recoveryResult.error
+                );
 
-    getRecoveryAction(category: ErrorCategory): RecoveryAction | null {
-        return this._recoveryActions.get(category) || null;
-    }
-
-    // Component management
-    isComponentDegraded(component: string): boolean {
-        return this._degradedComponents.has(component);
-    }
-
-    isComponentIsolated(component: string): boolean {
-        return this._isolatedComponents.has(component);
-    }
-
-    activateDegradedMode(component: string): void {
-        if (!this._degradedComponents.has(component)) {
-            this._degradedComponents.add(component);
-            this.emit('degraded-mode-activated', component);
-            this._log('warn', `Activated degraded mode for component: ${component}`);
-        }
-    }
-
-    deactivateDegradedMode(component: string): void {
-        if (this._degradedComponents.delete(component)) {
-            this._log('info', `Deactivated degraded mode for component: ${component}`);
-        }
-    }
-
-    isolateComponent(component: string): void {
-        if (!this._isolatedComponents.has(component)) {
-            this._isolatedComponents.add(component);
-            this._log('warn', `Isolated component due to repeated failures: ${component}`);
-        }
-    }
-
-    restoreComponent(component: string): void {
-        this._isolatedComponents.delete(component);
-        this._degradedComponents.delete(component);
-
-        // Reset circuit breaker
-        if (this._circuitBreakers.has(component)) {
-            this._circuitBreakers.delete(component);
-        }
-
-        this._log('info', `Restored component: ${component}`);
-    }
-
-    // Error inspection
-    getError(errorId: string): BoundaryError | null {
-        return this._errors.get(errorId) || null;
-    }
-
-    getErrorHistory(component?: string): BoundaryError[] {
-        if (component) {
-            return this._errorHistory.filter(e => e.context.component === component);
-        }
-        return [...this._errorHistory];
-    }
-
-    getCriticalErrors(): BoundaryError[] {
-        return this._errorHistory.filter(e => e.severity === ErrorSeverity.Critical);
-    }
-
-    getComponentStats(component: string): {
-        totalErrors: number;
-        recoveredErrors: number;
-        activeErrors: number;
-        circuitBreakerState?: CircuitState;
-    } {
-        const errors = this._errorHistory.filter(e => e.context.component === component);
-        const activeErrors = Array.from(this._errors.values()).filter(
-            e => e.context.component === component && !e.recovered
-        );
-
-        const breaker = this._circuitBreakers.get(component);
-
-        return {
-            totalErrors: errors.length,
-            recoveredErrors: errors.filter(e => e.recovered).length,
-            activeErrors: activeErrors.length,
-            circuitBreakerState: breaker?.state,
-        };
-    }
-
-    // Lifecycle
-    cleanup(): void {
-        const now = Date.now();
-        const cutoff = now - this._config.timeWindow;
-
-        // Remove old errors
-        const oldErrors = this._errorHistory.filter(e => e.context.timestamp < cutoff);
-        this._errorHistory = this._errorHistory.filter(e => e.context.timestamp >= cutoff);
-
-        // Clean up resolved errors from active map
-        for (const [id, error] of this._errors.entries()) {
-            if (error.recovered || error.context.timestamp < cutoff) {
-                this._errors.delete(id);
+                // Apply fallback strategies
+                this._applyFallbackStrategy(boundaryError);
             }
-        }
 
-        this._log('debug', `Cleaned up ${oldErrors.length} old errors`);
-    }
-
-    destroy(): void {
-        this._errors.clear();
-        this._errorHistory = [];
-        this._circuitBreakers.clear();
-        this._degradedComponents.clear();
-        this._isolatedComponents.clear();
-        this._recoveryActions.clear();
-
-        this._log('info', 'ErrorBoundary destroyed');
-    }
-
-    setLogger(logger: any): void {
-        this._logger = logger;
-    }
-
-    // Private methods
-    private async _handleError(
-        error: Error,
-        context: ErrorContext,
-        recoveryAction?: RecoveryAction
-    ): Promise<any> {
-        const boundaryError = this._createBoundaryError(error, context);
-
-        // Store error
-        this._errors.set(boundaryError.id, boundaryError);
-        this._errorHistory.push(boundaryError);
-
-        // Emit error event
-        this.emit('error-caught', boundaryError);
-
-        // Update circuit breaker
-        if (context.component && this._config.enableCircuitBreaker) {
-            const breaker = this._getCircuitBreaker(context.component);
-            breaker.onFailure();
-
-            if (breaker.state === CircuitState.Open) {
-                this.emit('circuit-breaker-opened', context.component);
+            // Clean up if needed
+            if (this._errorHistory.length > this._config.maxErrors) {
+                this.cleanup();
             }
+
+            return null;
         }
 
-        // Determine recovery strategy
-        const action =
-            recoveryAction ||
-            this._recoveryActions.get(boundaryError.category) ||
-            this._getDefaultRecoveryAction(boundaryError);
+        private _createBoundaryError(error: Error, context: ErrorContext): BoundaryError {
+            const severity = this._determineSeverity(error, context);
+            const category = this._determineCategory(error, context);
+            const strategy = this._getDefaultRecoveryAction({
+                severity,
+                category,
+            } as BoundaryError).strategy;
 
-        // Attempt recovery
-        const recoveryResult = await this._attemptRecovery(boundaryError, action);
-
-        if (recoveryResult.success) {
-            boundaryError.recovered = true;
-            this.emit('recovery-succeeded', boundaryError.id, recoveryResult);
-            this._log('info', `Successfully recovered from error ${boundaryError.id}`);
-        } else {
-            this.emit('recovery-failed', boundaryError.id, recoveryResult);
-            this._log(
-                'error',
-                `Failed to recover from error ${boundaryError.id}`,
-                recoveryResult.error
-            );
-
-            // Apply fallback strategies
-            this._applyFallbackStrategy(boundaryError);
+            return {
+                id: `error_${this._nextErrorId++}_${Date.now()}`,
+                original: error,
+                severity,
+                category,
+                context: {
+                    ...context,
+                    stackTrace: error.stack,
+                },
+                recoveryStrategy: strategy,
+                retryCount: 0,
+                recovered: false,
+            };
         }
 
-        // Clean up if needed
-        if (this._errorHistory.length > this._config.maxErrors) {
-            this.cleanup();
+        private _determineSeverity(error: Error, context: ErrorContext): ErrorSeverity {
+            // Critical errors that could crash the extension
+            if (
+                error.message.includes('segmentation fault') ||
+                error.message.includes('out of memory') ||
+                context.phase === 'initialization'
+            ) {
+                return ErrorSeverity.Critical;
+            }
+
+            // High severity for component failures
+            if (
+                context.component &&
+                (error.message.includes('failed to initialize') ||
+                    error.message.includes('dependency missing'))
+            ) {
+                return ErrorSeverity.High;
+            }
+
+            // Medium severity for runtime issues
+            if (context.phase === 'runtime' || error.name === 'TypeError') {
+                return ErrorSeverity.Medium;
+            }
+
+            return ErrorSeverity.Low;
         }
 
-        return null;
-    }
+        private _determineCategory(error: Error, context: ErrorContext): ErrorCategory {
+            if (context.phase === 'initialization') {
+                return ErrorCategory.Initialization;
+            }
+            if (context.operation?.includes('signal')) {
+                return ErrorCategory.Signal;
+            }
+            if (context.operation?.includes('state')) {
+                return ErrorCategory.State;
+            }
+            if (context.operation?.includes('effect') || context.operation?.includes('resource')) {
+                return ErrorCategory.Resource;
+            }
+            if (context.operation?.includes('ui')) {
+                return ErrorCategory.UI;
+            }
+            if (error.message.includes('external') || error.message.includes('dbus')) {
+                return ErrorCategory.External;
+            }
 
-    private _createBoundaryError(error: Error, context: ErrorContext): BoundaryError {
-        const severity = this._determineSeverity(error, context);
-        const category = this._determineCategory(error, context);
-        const strategy = this._getDefaultRecoveryAction({
-            severity,
-            category,
-        } as BoundaryError).strategy;
-
-        return {
-            id: `error_${this._nextErrorId++}_${Date.now()}`,
-            original: error,
-            severity,
-            category,
-            context: {
-                ...context,
-                stackTrace: error.stack,
-            },
-            recoveryStrategy: strategy,
-            retryCount: 0,
-            recovered: false,
-        };
-    }
-
-    private _determineSeverity(error: Error, context: ErrorContext): ErrorSeverity {
-        // Critical errors that could crash the extension
-        if (
-            error.message.includes('segmentation fault') ||
-            error.message.includes('out of memory') ||
-            context.phase === 'initialization'
-        ) {
-            return ErrorSeverity.Critical;
+            return ErrorCategory.Runtime;
         }
 
-        // High severity for component failures
-        if (
-            context.component &&
-            (error.message.includes('failed to initialize') ||
-                error.message.includes('dependency missing'))
-        ) {
-            return ErrorSeverity.High;
-        }
+        private async _attemptRecovery(
+            error: BoundaryError,
+            action: RecoveryAction
+        ): Promise<RecoveryResult> {
+            const startTime = Date.now();
+            this.emit('recovery-attempted', error.id, action.strategy);
 
-        // Medium severity for runtime issues
-        if (context.phase === 'runtime' || error.name === 'TypeError') {
-            return ErrorSeverity.Medium;
-        }
+            let retriesUsed = 0;
+            let fallbackUsed = false;
+            let lastError: Error | undefined;
 
-        return ErrorSeverity.Low;
-    }
+            while (retriesUsed < (action.maxRetries || this._config.maxRetries)) {
+                try {
+                    switch (action.strategy) {
+                        case RecoveryStrategy.Retry:
+                            if (action.retryDelay) {
+                                await this._delay(action.retryDelay);
+                            }
+                            break;
 
-    private _determineCategory(error: Error, context: ErrorContext): ErrorCategory {
-        if (context.phase === 'initialization') return ErrorCategory.Initialization;
-        if (context.operation?.includes('signal')) return ErrorCategory.Signal;
-        if (context.operation?.includes('state')) return ErrorCategory.State;
-        if (context.operation?.includes('effect') || context.operation?.includes('resource'))
-            return ErrorCategory.Resource;
-        if (context.operation?.includes('ui')) return ErrorCategory.UI;
-        if (error.message.includes('external') || error.message.includes('dbus'))
-            return ErrorCategory.External;
+                        case RecoveryStrategy.Restart:
+                            await this._restartComponent(error.context.component);
+                            break;
 
-        return ErrorCategory.Runtime;
-    }
+                        case RecoveryStrategy.Degrade:
+                            this.activateDegradedMode(error.context.component!);
+                            break;
 
-    private async _attemptRecovery(
-        error: BoundaryError,
-        action: RecoveryAction
-    ): Promise<RecoveryResult> {
-        const startTime = Date.now();
-        this.emit('recovery-attempted', error.id, action.strategy);
+                        case RecoveryStrategy.Isolate:
+                            this.isolateComponent(error.context.component!);
+                            break;
 
-        let retriesUsed = 0;
-        let fallbackUsed = false;
-        let lastError: Error | undefined;
+                        case RecoveryStrategy.Ignore:
+                            return {
+                                success: true,
+                                strategy: action.strategy,
+                                retriesUsed,
+                                timeElapsed: Date.now() - startTime,
+                                fallbackUsed,
+                            };
+                    }
 
-        while (retriesUsed < (action.maxRetries || this._config.maxRetries)) {
-            try {
-                switch (action.strategy) {
-                    case RecoveryStrategy.Retry:
-                        if (action.retryDelay) {
-                            await this._delay(action.retryDelay);
-                        }
-                        break;
-
-                    case RecoveryStrategy.Restart:
-                        await this._restartComponent(error.context.component);
-                        break;
-
-                    case RecoveryStrategy.Degrade:
-                        this.activateDegradedMode(error.context.component!);
-                        break;
-
-                    case RecoveryStrategy.Isolate:
-                        this.isolateComponent(error.context.component!);
-                        break;
-
-                    case RecoveryStrategy.Ignore:
+                    // Check if recovery was successful
+                    if (action.successCheck?.() !== false) {
                         return {
                             success: true,
                             strategy: action.strategy,
@@ -527,159 +553,153 @@ export class ErrorBoundary extends GObject.Object {
                             timeElapsed: Date.now() - startTime,
                             fallbackUsed,
                         };
+                    }
+                } catch (recoveryError) {
+                    lastError = recoveryError as Error;
+                    this._log('warn', `Recovery attempt ${retriesUsed + 1} failed:`, recoveryError);
                 }
 
-                // Check if recovery was successful
-                if (action.successCheck?.() !== false) {
-                    return {
-                        success: true,
-                        strategy: action.strategy,
-                        retriesUsed,
-                        timeElapsed: Date.now() - startTime,
-                        fallbackUsed,
-                    };
-                }
-            } catch (recoveryError) {
-                lastError = recoveryError as Error;
-                this._log('warn', `Recovery attempt ${retriesUsed + 1} failed:`, recoveryError);
+                retriesUsed++;
+                error.retryCount = retriesUsed;
             }
 
-            retriesUsed++;
-            error.retryCount = retriesUsed;
-        }
+            // Try fallback if available
+            if (action.fallbackAction && !fallbackUsed) {
+                try {
+                    await action.fallbackAction();
+                    fallbackUsed = true;
 
-        // Try fallback if available
-        if (action.fallbackAction && !fallbackUsed) {
-            try {
-                await action.fallbackAction();
-                fallbackUsed = true;
-
-                if (action.successCheck?.() !== false) {
-                    return {
-                        success: true,
-                        strategy: action.strategy,
-                        retriesUsed,
-                        timeElapsed: Date.now() - startTime,
-                        fallbackUsed,
-                    };
+                    if (action.successCheck?.() !== false) {
+                        return {
+                            success: true,
+                            strategy: action.strategy,
+                            retriesUsed,
+                            timeElapsed: Date.now() - startTime,
+                            fallbackUsed,
+                        };
+                    }
+                } catch (fallbackError) {
+                    lastError = fallbackError as Error;
                 }
-            } catch (fallbackError) {
-                lastError = fallbackError as Error;
             }
+
+            return {
+                success: false,
+                strategy: action.strategy,
+                retriesUsed,
+                timeElapsed: Date.now() - startTime,
+                fallbackUsed,
+                error: lastError,
+            };
         }
 
-        return {
-            success: false,
-            strategy: action.strategy,
-            retriesUsed,
-            timeElapsed: Date.now() - startTime,
-            fallbackUsed,
-            error: lastError,
-        };
-    }
+        private _applyFallbackStrategy(error: BoundaryError): void {
+            // Escalate to more severe recovery strategies
+            switch (error.recoveryStrategy) {
+                case RecoveryStrategy.Retry:
+                    if (error.severity === ErrorSeverity.Critical) {
+                        this.isolateComponent(error.context.component!);
+                    } else {
+                        this.activateDegradedMode(error.context.component!);
+                    }
+                    break;
 
-    private _applyFallbackStrategy(error: BoundaryError): void {
-        // Escalate to more severe recovery strategies
-        switch (error.recoveryStrategy) {
-            case RecoveryStrategy.Retry:
-                if (error.severity === ErrorSeverity.Critical) {
+                case RecoveryStrategy.Degrade:
                     this.isolateComponent(error.context.component!);
-                } else {
-                    this.activateDegradedMode(error.context.component!);
-                }
-                break;
+                    break;
 
-            case RecoveryStrategy.Degrade:
-                this.isolateComponent(error.context.component!);
-                break;
-
-            case RecoveryStrategy.Restart:
-                this.isolateComponent(error.context.component!);
-                break;
+                case RecoveryStrategy.Restart:
+                    this.isolateComponent(error.context.component!);
+                    break;
+            }
         }
-    }
 
-    private _getDefaultRecoveryAction(error: BoundaryError): RecoveryAction {
-        switch (error.severity) {
-            case ErrorSeverity.Critical:
-                return { strategy: RecoveryStrategy.Isolate };
-            case ErrorSeverity.High:
-                return { strategy: RecoveryStrategy.Restart, maxRetries: 2 };
-            case ErrorSeverity.Medium:
-                return { strategy: RecoveryStrategy.Retry, maxRetries: 3, retryDelay: 1000 };
-            default:
-                return { strategy: RecoveryStrategy.Ignore };
+        private _getDefaultRecoveryAction(error: BoundaryError): RecoveryAction {
+            switch (error.severity) {
+                case ErrorSeverity.Critical:
+                    return { strategy: RecoveryStrategy.Isolate };
+                case ErrorSeverity.High:
+                    return { strategy: RecoveryStrategy.Restart, maxRetries: 2 };
+                case ErrorSeverity.Medium:
+                    return { strategy: RecoveryStrategy.Retry, maxRetries: 3, retryDelay: 1000 };
+                default:
+                    return { strategy: RecoveryStrategy.Ignore };
+            }
         }
-    }
 
-    private _setupDefaultRecoveryActions(): void {
-        this._recoveryActions.set(ErrorCategory.Initialization, {
-            strategy: RecoveryStrategy.Restart,
-            maxRetries: 2,
-        });
-
-        this._recoveryActions.set(ErrorCategory.Resource, {
-            strategy: RecoveryStrategy.Retry,
-            maxRetries: 3,
-            retryDelay: 500,
-        });
-
-        this._recoveryActions.set(ErrorCategory.Signal, {
-            strategy: RecoveryStrategy.Retry,
-            maxRetries: 2,
-            retryDelay: 1000,
-        });
-
-        this._recoveryActions.set(ErrorCategory.UI, {
-            strategy: RecoveryStrategy.Degrade,
-        });
-
-        this._recoveryActions.set(ErrorCategory.External, {
-            strategy: RecoveryStrategy.Retry,
-            maxRetries: 5,
-            retryDelay: 2000,
-        });
-    }
-
-    private _getCircuitBreaker(component: string): CircuitBreaker {
-        if (!this._circuitBreakers.has(component)) {
-            this._circuitBreakers.set(
-                component,
-                new CircuitBreaker(
-                    this._config.circuitBreakerThreshold,
-                    this._config.circuitBreakerTimeout
-                )
-            );
-        }
-        return this._circuitBreakers.get(component)!;
-    }
-
-    private async _restartComponent(componentName?: string): Promise<void> {
-        if (!componentName) return;
-
-        this._log('info', `Attempting to restart component: ${componentName}`);
-        // Implementation would depend on component registry integration
-        // This is a placeholder for the actual restart logic
-    }
-
-    private async _delay(ms: number): Promise<void> {
-        return new Promise(resolve => {
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
-                resolve();
-                return GLib.SOURCE_REMOVE;
+        private _setupDefaultRecoveryActions(): void {
+            this._recoveryActions.set(ErrorCategory.Initialization, {
+                strategy: RecoveryStrategy.Restart,
+                maxRetries: 2,
             });
-        });
-    }
 
-    private _log(level: string, message: string, ...args: any[]): void {
-        const prefix = '[ErrorBoundary]';
+            this._recoveryActions.set(ErrorCategory.Resource, {
+                strategy: RecoveryStrategy.Retry,
+                maxRetries: 3,
+                retryDelay: 500,
+            });
 
-        if (this._logger) {
-            this._logger.log(level, `${prefix} ${message}`, ...args);
-        } else {
-            // Fallback to console
-            const method = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log';
-            console[method](`${prefix} ${message}`, ...args);
+            this._recoveryActions.set(ErrorCategory.Signal, {
+                strategy: RecoveryStrategy.Retry,
+                maxRetries: 2,
+                retryDelay: 1000,
+            });
+
+            this._recoveryActions.set(ErrorCategory.UI, {
+                strategy: RecoveryStrategy.Degrade,
+            });
+
+            this._recoveryActions.set(ErrorCategory.External, {
+                strategy: RecoveryStrategy.Retry,
+                maxRetries: 5,
+                retryDelay: 2000,
+            });
+        }
+
+        private _getCircuitBreaker(component: string): CircuitBreaker {
+            if (!this._circuitBreakers.has(component)) {
+                this._circuitBreakers.set(
+                    component,
+                    new CircuitBreaker(
+                        this._config.circuitBreakerThreshold,
+                        this._config.circuitBreakerTimeout
+                    )
+                );
+            }
+            return this._circuitBreakers.get(component)!;
+        }
+
+        private async _restartComponent(componentName?: string): Promise<void> {
+            if (!componentName) {
+                return;
+            }
+
+            this._log('info', `Attempting to restart component: ${componentName}`);
+            // Implementation would depend on component registry integration
+            // This is a placeholder for the actual restart logic
+        }
+
+        private async _delay(ms: number): Promise<void> {
+            return new Promise(resolve => {
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
+                    resolve();
+                    return GLib.SOURCE_REMOVE;
+                });
+            });
+        }
+
+        private _log(level: string, message: string, ...args: any[]): void {
+            const prefix = '[ErrorBoundary]';
+
+            if (this._logger) {
+                this._logger.log(level, `${prefix} ${message}`, ...args);
+            } else {
+                // Fallback to console
+                const method = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log';
+                console[method](`${prefix} ${message}`, ...args);
+            }
         }
     }
-}
+);
+// eslint-disable-next-line no-redeclare
+export type ErrorBoundary = InstanceType<typeof ErrorBoundary>;

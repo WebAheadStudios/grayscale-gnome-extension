@@ -3,8 +3,8 @@
  * Efficient resource management with automatic cleanup and monitoring
  */
 
-import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
+import GObject from 'gi://GObject';
 
 // Pool configuration
 export interface EffectPoolConfig {
@@ -71,417 +71,424 @@ export class DesaturateEffectFactory implements EffectFactory<Clutter.Desaturate
     }
 }
 
-export class EffectPool<T extends Clutter.Effect = Clutter.Effect> extends GObject.Object {
-    static [GObject.signals] = {
-        'effect-acquired': {
-            param_types: [GObject.TYPE_STRING, GObject.TYPE_BOOLEAN], // id, wasReused
+export const EffectPool = GObject.registerClass(
+    {
+        GTypeName: 'GrayscaleEffectPool',
+        Signals: {
+            'effect-acquired': {
+                param_types: [GObject.TYPE_STRING, GObject.TYPE_BOOLEAN], // id, wasReused
+            },
+            'effect-released': {
+                param_types: [GObject.TYPE_STRING], // id
+            },
+            'pool-cleaned': {
+                param_types: [GObject.TYPE_INT], // removedCount
+            },
+            'statistics-updated': {
+                param_types: [GObject.TYPE_VARIANT], // stats object
+            },
         },
-        'effect-released': {
-            param_types: [GObject.TYPE_STRING], // id
-        },
-        'pool-cleaned': {
-            param_types: [GObject.TYPE_INT], // removedCount
-        },
-        'statistics-updated': {
-            param_types: [GObject.TYPE_VARIANT], // stats object
-        },
-    };
+    },
+    class EffectPool extends GObject.Object {
+        private _factory: EffectFactory<Clutter.Effect>;
+        private _config: Required<EffectPoolConfig>;
+        private _available: Map<string, EffectMetadata> = new Map();
+        private _inUse: Map<string, EffectMetadata> = new Map();
+        private _statistics: PoolStatistics;
+        private _cleanupTimeoutId: ReturnType<typeof setInterval> | null = null;
+        private _nextId = 1;
+        private _logger: any = null;
+        private _destroyed = false;
 
-    private _factory: EffectFactory<T>;
-    private _config: Required<EffectPoolConfig>;
-    private _available: Map<string, EffectMetadata> = new Map();
-    private _inUse: Map<string, EffectMetadata> = new Map();
-    private _statistics: PoolStatistics;
-    private _cleanupTimeoutId: ReturnType<typeof setInterval> | null = null;
-    private _nextId: number = 1;
-    private _logger: any = null;
-    private _destroyed: boolean = false;
+        constructor(factory: EffectFactory<Clutter.Effect>, config: EffectPoolConfig = {}) {
+            super();
 
-    constructor(factory: EffectFactory<T>, config: EffectPoolConfig = {}) {
-        super();
+            this._factory = factory;
+            this._config = {
+                initialSize: 5,
+                maxSize: 50,
+                maxIdleTime: 300000, // 5 minutes
+                cleanupInterval: 60000, // 1 minute
+                enableStatistics: true,
+                preallocationStrategy: 'lazy',
+                ...config,
+            };
 
-        this._factory = factory;
-        this._config = {
-            initialSize: 5,
-            maxSize: 50,
-            maxIdleTime: 300000, // 5 minutes
-            cleanupInterval: 60000, // 1 minute
-            enableStatistics: true,
-            preallocationStrategy: 'lazy',
-            ...config,
-        };
+            this._statistics = {
+                totalCreated: 0,
+                totalDestroyed: 0,
+                currentAvailable: 0,
+                currentInUse: 0,
+                peakUsage: 0,
+                averageUseTime: 0,
+                hitRate: 0,
+                missRate: 0,
+            };
 
-        this._statistics = {
-            totalCreated: 0,
-            totalDestroyed: 0,
-            currentAvailable: 0,
-            currentInUse: 0,
-            peakUsage: 0,
-            averageUseTime: 0,
-            hitRate: 0,
-            missRate: 0,
-        };
-
-        this._initialize();
-    }
-
-    // Public API
-    acquire(): T {
-        if (this._destroyed) {
-            throw new Error('EffectPool has been destroyed');
+            this._initialize();
         }
 
-        const startTime = Date.now();
-        let effect: T;
-        let metadata: EffectMetadata;
-        let wasReused = false;
-
-        // Try to reuse an available effect
-        const availableId = this._findBestAvailableEffect();
-        if (availableId) {
-            metadata = this._available.get(availableId)!;
-            effect = metadata.effect as T;
-            this._available.delete(availableId);
-            wasReused = true;
-
-            // Reset the effect to a clean state
-            this._factory.reset(effect);
-        } else {
-            // Create a new effect
-            try {
-                effect = this._factory.create();
-                metadata = {
-                    effect,
-                    created: Date.now(),
-                    lastUsed: 0,
-                    useCount: 0,
-                    inUse: false,
-                    id: this._generateId(),
-                };
-                this._statistics.totalCreated++;
-            } catch (error) {
-                this._log('error', 'Failed to create effect:', error);
-                throw error;
+        // Public API
+        acquire(): Clutter.Effect {
+            if (this._destroyed) {
+                throw new Error('EffectPool has been destroyed');
             }
-        }
 
-        // Mark as in use
-        metadata.inUse = true;
-        metadata.lastUsed = Date.now();
-        metadata.useCount++;
-        this._inUse.set(metadata.id, metadata);
+            const startTime = Date.now();
+            let effect: Clutter.Effect;
+            let metadata: EffectMetadata;
+            let wasReused = false;
 
-        // Update statistics
-        this._updateStatistics(wasReused, Date.now() - startTime);
+            // Try to reuse an available effect
+            const availableId = this._findBestAvailableEffect();
+            if (availableId) {
+                metadata = this._available.get(availableId)!;
+                effect = metadata.effect as Clutter.Effect;
+                this._available.delete(availableId);
+                wasReused = true;
 
-        this.emit('effect-acquired', metadata.id, wasReused);
-        this._log('debug', `Acquired effect ${metadata.id} (reused: ${wasReused})`);
-
-        return effect;
-    }
-
-    release(effect: T): boolean {
-        if (this._destroyed) {
-            return false;
-        }
-
-        // Find the metadata for this effect
-        const metadata = this._findMetadataByEffect(effect);
-        if (!metadata || !metadata.inUse) {
-            this._log('warn', 'Attempted to release effect that is not in use');
-            return false;
-        }
-
-        // Validate the effect is still usable
-        if (!this._factory.validate(effect)) {
-            this._log('warn', `Effect ${metadata.id} is no longer valid, destroying`);
-            this._destroyMetadata(metadata);
-            return true;
-        }
-
-        // Check if we've exceeded the maximum pool size
-        if (this._available.size >= this._config.maxSize) {
-            this._log('debug', `Pool at maximum size, destroying effect ${metadata.id}`);
-            this._destroyMetadata(metadata);
-            return true;
-        }
-
-        // Move from in-use to available
-        this._inUse.delete(metadata.id);
-        metadata.inUse = false;
-        this._available.set(metadata.id, metadata);
-
-        this._updateStatistics();
-        this.emit('effect-released', metadata.id);
-        this._log('debug', `Released effect ${metadata.id} back to pool`);
-
-        return true;
-    }
-
-    // Pool management
-    warmUp(count?: number): void {
-        if (this._destroyed) {
-            return;
-        }
-
-        const targetCount = count || this._config.initialSize;
-        const currentCount = this._available.size;
-        const needed = Math.max(0, targetCount - currentCount);
-
-        this._log('info', `Warming up pool with ${needed} effects`);
-
-        for (let i = 0; i < needed; i++) {
-            try {
-                const effect = this._factory.create();
-                const metadata: EffectMetadata = {
-                    effect,
-                    created: Date.now(),
-                    lastUsed: 0,
-                    useCount: 0,
-                    inUse: false,
-                    id: this._generateId(),
-                };
-
-                this._available.set(metadata.id, metadata);
-                this._statistics.totalCreated++;
-            } catch (error) {
-                this._log('error', 'Failed to create effect during warm-up:', error);
-                break;
+                // Reset the effect to a clean state
+                this._factory.reset(effect);
+            } else {
+                // Create a new effect
+                try {
+                    effect = this._factory.create();
+                    metadata = {
+                        effect,
+                        created: Date.now(),
+                        lastUsed: 0,
+                        useCount: 0,
+                        inUse: false,
+                        id: this._generateId(),
+                    };
+                    this._statistics.totalCreated++;
+                } catch (error) {
+                    this._log('error', 'Failed to create effect:', error);
+                    throw error;
+                }
             }
+
+            // Mark as in use
+            metadata.inUse = true;
+            metadata.lastUsed = Date.now();
+            metadata.useCount++;
+            this._inUse.set(metadata.id, metadata);
+
+            // Update statistics
+            this._updateStatistics(wasReused, Date.now() - startTime);
+
+            this.emit('effect-acquired', metadata.id, wasReused);
+            this._log('debug', `Acquired effect ${metadata.id} (reused: ${wasReused})`);
+
+            return effect;
         }
 
-        this._updateStatistics();
-    }
-
-    cleanup(force: boolean = false): number {
-        if (this._destroyed) {
-            return 0;
-        }
-
-        const now = Date.now();
-        const toRemove: EffectMetadata[] = [];
-
-        for (const metadata of this._available.values()) {
-            const idleTime = now - metadata.lastUsed;
-
-            if (force || idleTime > this._config.maxIdleTime) {
-                toRemove.push(metadata);
+        release(effect: Clutter.Effect): boolean {
+            if (this._destroyed) {
+                return false;
             }
-        }
 
-        // Remove idle effects
-        for (const metadata of toRemove) {
-            this._available.delete(metadata.id);
-            this._destroyMetadata(metadata);
-        }
+            // Find the metadata for this effect
+            const metadata = this._findMetadataByEffect(effect);
+            if (!metadata || !metadata.inUse) {
+                this._log('warn', 'Attempted to release effect that is not in use');
+                return false;
+            }
 
-        if (toRemove.length > 0) {
+            // Validate the effect is still usable
+            if (!this._factory.validate(effect)) {
+                this._log('warn', `Effect ${metadata.id} is no longer valid, destroying`);
+                this._destroyMetadata(metadata);
+                return true;
+            }
+
+            // Check if we've exceeded the maximum pool size
+            if (this._available.size >= this._config.maxSize) {
+                this._log('debug', `Pool at maximum size, destroying effect ${metadata.id}`);
+                this._destroyMetadata(metadata);
+                return true;
+            }
+
+            // Move from in-use to available
+            this._inUse.delete(metadata.id);
+            metadata.inUse = false;
+            this._available.set(metadata.id, metadata);
+
             this._updateStatistics();
-            this.emit('pool-cleaned', toRemove.length);
-            this._log('debug', `Cleaned up ${toRemove.length} idle effects`);
+            this.emit('effect-released', metadata.id);
+            this._log('debug', `Released effect ${metadata.id} back to pool`);
+
+            return true;
         }
 
-        return toRemove.length;
-    }
+        // Pool management
+        warmUp(count?: number): void {
+            if (this._destroyed) {
+                return;
+            }
 
-    // Inspection and statistics
-    getStatistics(): PoolStatistics {
-        return { ...this._statistics };
-    }
+            const targetCount = count || this._config.initialSize;
+            const currentCount = this._available.size;
+            const needed = Math.max(0, targetCount - currentCount);
 
-    getAvailableCount(): number {
-        return this._available.size;
-    }
+            this._log('info', `Warming up pool with ${needed} effects`);
 
-    getInUseCount(): number {
-        return this._inUse.size;
-    }
+            for (let i = 0; i < needed; i++) {
+                try {
+                    const effect = this._factory.create();
+                    const metadata: EffectMetadata = {
+                        effect,
+                        created: Date.now(),
+                        lastUsed: 0,
+                        useCount: 0,
+                        inUse: false,
+                        id: this._generateId(),
+                    };
 
-    getTotalCount(): number {
-        return this._available.size + this._inUse.size;
-    }
+                    this._available.set(metadata.id, metadata);
+                    this._statistics.totalCreated++;
+                } catch (error) {
+                    this._log('error', 'Failed to create effect during warm-up:', error);
+                    break;
+                }
+            }
 
-    getEffectInfo(effect: T): EffectMetadata | null {
-        const metadata = this._findMetadataByEffect(effect);
-        return metadata ? { ...metadata } : null;
-    }
+            this._updateStatistics();
+        }
 
-    // Configuration
-    updateConfig(config: Partial<EffectPoolConfig>): void {
-        this._config = { ...this._config, ...config };
+        cleanup(force = false): number {
+            if (this._destroyed) {
+                return 0;
+            }
 
-        // Restart cleanup timer if interval changed
-        if (config.cleanupInterval && this._cleanupTimeoutId) {
+            const now = Date.now();
+            const toRemove: EffectMetadata[] = [];
+
+            for (const metadata of this._available.values()) {
+                const idleTime = now - metadata.lastUsed;
+
+                if (force || idleTime > this._config.maxIdleTime) {
+                    toRemove.push(metadata);
+                }
+            }
+
+            // Remove idle effects
+            for (const metadata of toRemove) {
+                this._available.delete(metadata.id);
+                this._destroyMetadata(metadata);
+            }
+
+            if (toRemove.length > 0) {
+                this._updateStatistics();
+                this.emit('pool-cleaned', toRemove.length);
+                this._log('debug', `Cleaned up ${toRemove.length} idle effects`);
+            }
+
+            return toRemove.length;
+        }
+
+        // Inspection and statistics
+        getStatistics(): PoolStatistics {
+            return { ...this._statistics };
+        }
+
+        getAvailableCount(): number {
+            return this._available.size;
+        }
+
+        getInUseCount(): number {
+            return this._inUse.size;
+        }
+
+        getTotalCount(): number {
+            return this._available.size + this._inUse.size;
+        }
+
+        getEffectInfo(effect: Clutter.Effect): EffectMetadata | null {
+            const metadata = this._findMetadataByEffect(effect);
+            return metadata ? { ...metadata } : null;
+        }
+
+        // Configuration
+        updateConfig(config: Partial<EffectPoolConfig>): void {
+            this._config = { ...this._config, ...config };
+
+            // Restart cleanup timer if interval changed
+            if (config.cleanupInterval && this._cleanupTimeoutId) {
+                this._stopCleanupTimer();
+                this._startCleanupTimer();
+            }
+        }
+
+        setLogger(logger: any): void {
+            this._logger = logger;
+        }
+
+        // Lifecycle
+        destroy(): void {
+            if (this._destroyed) {
+                return;
+            }
+
+            this._log('info', 'Destroying EffectPool...');
+
+            // Stop cleanup timer
             this._stopCleanupTimer();
+
+            // Destroy all effects
+            for (const metadata of this._available.values()) {
+                this._destroyMetadata(metadata);
+            }
+
+            for (const metadata of this._inUse.values()) {
+                this._destroyMetadata(metadata);
+            }
+
+            // Clear collections
+            this._available.clear();
+            this._inUse.clear();
+
+            this._destroyed = true;
+            this._log(
+                'info',
+                `EffectPool destroyed. Total effects created: ${this._statistics.totalCreated}`
+            );
+        }
+
+        // Private methods
+        private _initialize(): void {
+            // Start cleanup timer
             this._startCleanupTimer();
-        }
-    }
 
-    setLogger(logger: any): void {
-        this._logger = logger;
-    }
+            // Pre-allocate effects if using eager strategy
+            if (this._config.preallocationStrategy === 'eager') {
+                this.warmUp();
+            }
 
-    // Lifecycle
-    destroy(): void {
-        if (this._destroyed) {
-            return;
-        }
-
-        this._log('info', 'Destroying EffectPool...');
-
-        // Stop cleanup timer
-        this._stopCleanupTimer();
-
-        // Destroy all effects
-        for (const metadata of this._available.values()) {
-            this._destroyMetadata(metadata);
+            this._log(
+                'info',
+                `EffectPool initialized with config: ${JSON.stringify(this._config)}`
+            );
         }
 
-        for (const metadata of this._inUse.values()) {
-            this._destroyMetadata(metadata);
+        private _startCleanupTimer(): void {
+            if (this._config.cleanupInterval > 0) {
+                this._cleanupTimeoutId = setInterval(() => {
+                    this.cleanup();
+                }, this._config.cleanupInterval);
+            }
         }
 
-        // Clear collections
-        this._available.clear();
-        this._inUse.clear();
-
-        this._destroyed = true;
-        this._log(
-            'info',
-            `EffectPool destroyed. Total effects created: ${this._statistics.totalCreated}`
-        );
-    }
-
-    // Private methods
-    private _initialize(): void {
-        // Start cleanup timer
-        this._startCleanupTimer();
-
-        // Pre-allocate effects if using eager strategy
-        if (this._config.preallocationStrategy === 'eager') {
-            this.warmUp();
+        private _stopCleanupTimer(): void {
+            if (this._cleanupTimeoutId) {
+                clearInterval(this._cleanupTimeoutId);
+                this._cleanupTimeoutId = null;
+            }
         }
 
-        this._log('info', `EffectPool initialized with config: ${JSON.stringify(this._config)}`);
-    }
+        private _findBestAvailableEffect(): string | null {
+            if (this._available.size === 0) {
+                return null;
+            }
 
-    private _startCleanupTimer(): void {
-        if (this._config.cleanupInterval > 0) {
-            this._cleanupTimeoutId = setInterval(() => {
-                this.cleanup();
-            }, this._config.cleanupInterval);
+            // Find the most recently used effect (LRU strategy)
+            let bestId: string | null = null;
+            let bestLastUsed = 0;
+
+            for (const [id, metadata] of this._available.entries()) {
+                if (metadata.lastUsed > bestLastUsed) {
+                    bestLastUsed = metadata.lastUsed;
+                    bestId = id;
+                }
+            }
+
+            return bestId;
         }
-    }
 
-    private _stopCleanupTimer(): void {
-        if (this._cleanupTimeoutId) {
-            clearInterval(this._cleanupTimeoutId);
-            this._cleanupTimeoutId = null;
-        }
-    }
+        private _findMetadataByEffect(effect: Clutter.Effect): EffectMetadata | null {
+            // Check in-use effects first (more likely)
+            for (const metadata of this._inUse.values()) {
+                if (metadata.effect === effect) {
+                    return metadata;
+                }
+            }
 
-    private _findBestAvailableEffect(): string | null {
-        if (this._available.size === 0) {
+            // Check available effects
+            for (const metadata of this._available.values()) {
+                if (metadata.effect === effect) {
+                    return metadata;
+                }
+            }
+
             return null;
         }
 
-        // Find the most recently used effect (LRU strategy)
-        let bestId: string | null = null;
-        let bestLastUsed = 0;
-
-        for (const [id, metadata] of this._available.entries()) {
-            if (metadata.lastUsed > bestLastUsed) {
-                bestLastUsed = metadata.lastUsed;
-                bestId = id;
+        private _destroyMetadata(metadata: EffectMetadata): void {
+            try {
+                this._factory.destroy(metadata.effect as Clutter.Effect);
+                this._statistics.totalDestroyed++;
+            } catch (error) {
+                this._log('error', `Error destroying effect ${metadata.id}:`, error);
             }
         }
 
-        return bestId;
-    }
+        private _generateId(): string {
+            return `effect_${this._nextId++}_${Date.now()}`;
+        }
 
-    private _findMetadataByEffect(effect: T): EffectMetadata | null {
-        // Check in-use effects first (more likely)
-        for (const metadata of this._inUse.values()) {
-            if (metadata.effect === effect) {
-                return metadata;
+        private _updateStatistics(wasReused?: boolean, acquisitionTime?: number): void {
+            if (!this._config.enableStatistics) {
+                return;
+            }
+
+            this._statistics.currentAvailable = this._available.size;
+            this._statistics.currentInUse = this._inUse.size;
+            this._statistics.peakUsage = Math.max(
+                this._statistics.peakUsage,
+                this._statistics.currentInUse
+            );
+
+            // Update hit/miss rates
+            if (wasReused !== undefined) {
+                const totalAcquisitions =
+                    this._statistics.totalCreated - this._statistics.totalDestroyed;
+                if (totalAcquisitions > 0) {
+                    const hits = wasReused ? 1 : 0;
+                    const misses = wasReused ? 0 : 1;
+
+                    this._statistics.hitRate =
+                        ((this._statistics.hitRate + hits) / totalAcquisitions) * 100;
+                    this._statistics.missRate =
+                        ((this._statistics.missRate + misses) / totalAcquisitions) * 100;
+                }
+            }
+
+            // Update average use time
+            if (acquisitionTime) {
+                this._statistics.averageUseTime =
+                    (this._statistics.averageUseTime + acquisitionTime) / 2;
+            }
+
+            this.emit('statistics-updated', this._statistics);
+        }
+
+        private _log(level: string, message: string, ...args: any[]): void {
+            const prefix = '[EffectPool]';
+
+            if (this._logger) {
+                this._logger.log(level, `${prefix} ${message}`, ...args);
+            } else {
+                // Fallback to console
+                const method = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log';
+                console[method](`${prefix} ${message}`, ...args);
             }
         }
-
-        // Check available effects
-        for (const metadata of this._available.values()) {
-            if (metadata.effect === effect) {
-                return metadata;
-            }
-        }
-
-        return null;
     }
-
-    private _destroyMetadata(metadata: EffectMetadata): void {
-        try {
-            this._factory.destroy(metadata.effect as T);
-            this._statistics.totalDestroyed++;
-        } catch (error) {
-            this._log('error', `Error destroying effect ${metadata.id}:`, error);
-        }
-    }
-
-    private _generateId(): string {
-        return `effect_${this._nextId++}_${Date.now()}`;
-    }
-
-    private _updateStatistics(wasReused?: boolean, acquisitionTime?: number): void {
-        if (!this._config.enableStatistics) {
-            return;
-        }
-
-        this._statistics.currentAvailable = this._available.size;
-        this._statistics.currentInUse = this._inUse.size;
-        this._statistics.peakUsage = Math.max(
-            this._statistics.peakUsage,
-            this._statistics.currentInUse
-        );
-
-        // Update hit/miss rates
-        if (wasReused !== undefined) {
-            const totalAcquisitions =
-                this._statistics.totalCreated - this._statistics.totalDestroyed;
-            if (totalAcquisitions > 0) {
-                const hits = wasReused ? 1 : 0;
-                const misses = wasReused ? 0 : 1;
-
-                this._statistics.hitRate =
-                    ((this._statistics.hitRate + hits) / totalAcquisitions) * 100;
-                this._statistics.missRate =
-                    ((this._statistics.missRate + misses) / totalAcquisitions) * 100;
-            }
-        }
-
-        // Update average use time
-        if (acquisitionTime) {
-            this._statistics.averageUseTime =
-                (this._statistics.averageUseTime + acquisitionTime) / 2;
-        }
-
-        this.emit('statistics-updated', this._statistics);
-    }
-
-    private _log(level: string, message: string, ...args: any[]): void {
-        const prefix = '[EffectPool]';
-
-        if (this._logger) {
-            this._logger.log(level, `${prefix} ${message}`, ...args);
-        } else {
-            // Fallback to console
-            const method = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log';
-            console[method](`${prefix} ${message}`, ...args);
-        }
-    }
-}
+);
+// eslint-disable-next-line no-redeclare
+export type EffectPool = InstanceType<typeof EffectPool>;
 
 // Convenience function to create a DesaturateEffect pool
-export function createDesaturateEffectPool(
-    config?: EffectPoolConfig
-): EffectPool<Clutter.DesaturateEffect> {
+export function createDesaturateEffectPool(config?: EffectPoolConfig): EffectPool {
     return new EffectPool(new DesaturateEffectFactory(), config);
 }
