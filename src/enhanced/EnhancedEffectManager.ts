@@ -672,7 +672,7 @@ export const EnhancedEffectManager = GObject.registerClass(
 
             this._enhancedSignalManager.connectSignal(
                 this._monitorManager,
-                'monitors-changed',
+                'monitors-reconfigured',
                 this._onMonitorsChanged.bind(this),
                 {
                     namespace: this.metadata.name,

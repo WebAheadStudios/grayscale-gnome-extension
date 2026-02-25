@@ -42,8 +42,6 @@ interface KeyboardShortcut {
 
 // Notification data
 interface NotificationData {
-    source: any; // MessageTraySource
-    notification: any; // Notification
     context: Record<string, any>;
 }
 
@@ -555,12 +553,12 @@ export const UIController = GObject.registerClass(
         }
 
         // Public toggle methods for external use
-        async requestToggle(source: string = 'api'): Promise<boolean> {
+        async requestToggle(source = 'api'): Promise<boolean> {
             try {
                 (this as any).emit('toggle-requested', source);
 
                 const newState = await this._stateManager.toggleGrayscaleState({
-                    source: source,
+                    source,
                     animated: true,
                 });
 
@@ -579,7 +577,7 @@ export const UIController = GObject.registerClass(
             }
         }
 
-        async requestMonitorToggle(monitorIndex: number, source: string = 'api'): Promise<boolean> {
+        async requestMonitorToggle(monitorIndex: number, source = 'api'): Promise<boolean> {
             try {
                 const currentState = this._stateManager.getMonitorState(monitorIndex);
                 const newState = await this._stateManager.setMonitorState(
@@ -628,7 +626,7 @@ export const UIController = GObject.registerClass(
         private _handleStateChange(
             globalState: boolean,
             previousState: boolean,
-            options: any
+            _options: any
         ): void {
             // Handle visual feedback for state changes
             console.log(
@@ -696,53 +694,22 @@ export const UIController = GObject.registerClass(
             id: string,
             title: string,
             message: string,
-            icon: string,
+            _icon: string,
             context: Record<string, any> = {}
         ): void {
             try {
-                // Clear existing notification with same ID
-                this._clearNotification(id);
+                // Store reference for tracking
+                this._notifications.set(id, { context });
 
-                // Create notification
-                const source = new (Main.messageTray as any).MessageTraySource(title, icon);
-                const notification = new (Main.messageTray as any).Notification(
-                    source,
-                    title,
-                    message
-                );
-
-                // Store reference for cleanup
-                this._notifications.set(id, {
-                    source: source,
-                    notification: notification,
-                    context,
-                });
-
-                // Show notification
-                (Main.messageTray as any).add(source);
-                (Main.messageTray as any).banner = notification;
-
-                // Auto-hide after configured timeout
-                setTimeout(() => {
-                    this._clearNotification(id);
-                }, this._uiPreferences.notificationTimeout);
+                // Use GNOME 46+ simple notification API
+                Main.notify(title, message);
             } catch (error) {
                 console.warn(`[UIController] Failed to show notification '${id}':`, error);
             }
         }
 
         private _clearNotification(id: string): void {
-            const notification = this._notifications.get(id);
-            if (notification) {
-                try {
-                    if (notification.source && notification.source.destroy) {
-                        notification.source.destroy();
-                    }
-                    this._notifications.delete(id);
-                } catch (error) {
-                    console.warn(`[UIController] Failed to clear notification '${id}':`, error);
-                }
-            }
+            this._notifications.delete(id);
         }
 
         private _clearAllNotifications(): void {

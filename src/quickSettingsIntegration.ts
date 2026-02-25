@@ -72,10 +72,6 @@ export const GrayscaleQuickToggle = GObject.registerClass(
             return (this as any).icon_name || '';
         }
 
-        get checked(): boolean {
-            return (this as any).checked || false;
-        }
-
         toggle(): void {
             this._onToggleClicked();
         }

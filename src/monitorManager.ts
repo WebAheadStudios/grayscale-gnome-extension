@@ -539,17 +539,6 @@ class HotplugEventManager {
             signalId: layoutChangeSignal,
         });
 
-        // Connect to display configuration changes
-        if (global.display) {
-            const displayConfigSignal = global.display.connect('monitors-changed', () =>
-                this._handleDisplayConfigChanged()
-            );
-            this._signalConnections.push({
-                object: global.display,
-                signalId: displayConfigSignal,
-            });
-        }
-
         console.log('[HotplugEventManager] Initialized');
     }
 

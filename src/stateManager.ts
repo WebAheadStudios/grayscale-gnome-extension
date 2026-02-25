@@ -37,28 +37,10 @@ interface StateOperationOptions {
     animated?: boolean;
 }
 
-// Monitor state per monitor
-interface MonitorState {
-    enabled: boolean;
-    effectActive: boolean;
-    lastToggleTime: number;
-    geometry: any;
-    connector: string | null;
-    isPrimary: boolean;
-}
-
 // Performance metrics
 interface PerformanceMetrics {
     toggleTimes: number[];
     errorCounts: Map<string, number>;
-}
-
-// Migration result
-interface MonitorMigration {
-    preserved: MonitorInfo[];
-    moved: Array<{ from: number; to: number; monitor: MonitorInfo }>;
-    added: MonitorInfo[];
-    removed: MonitorInfo[];
 }
 
 // Validation rule
@@ -203,7 +185,7 @@ export const StateManager = GObject.registerClass(
             });
         }
 
-        updateMonitors(monitors: MonitorInfo[]): void {
+        updateMonitors(_monitors: MonitorInfo[]): void {
             this.syncMonitorStates().catch(error => {
                 console.error('[StateManager] Failed to update monitors:', error);
             });
@@ -256,7 +238,7 @@ export const StateManager = GObject.registerClass(
             }
 
             // Performance tracking
-            const startTime = performance.now();
+            const startTime = GLib.get_monotonic_time() / 1000;
 
             try {
                 // Validation
@@ -297,7 +279,7 @@ export const StateManager = GObject.registerClass(
                     }
 
                     // Performance tracking
-                    const duration = performance.now() - startTime;
+                    const duration = GLib.get_monotonic_time() / 1000 - startTime;
                     this._recordPerformanceMetric('globalToggle', duration);
 
                     console.log(
@@ -399,10 +381,7 @@ export const StateManager = GObject.registerClass(
             return this._state.effects.has(monitorIndex);
         }
 
-        async initializeMonitorState(
-            monitorIndex: number,
-            initialState: boolean = false
-        ): Promise<any> {
+        async initializeMonitorState(monitorIndex: number, initialState = false): Promise<any> {
             if (!Number.isInteger(monitorIndex) || monitorIndex < 0) {
                 throw new Error(`Invalid monitor index: ${monitorIndex}`);
             }

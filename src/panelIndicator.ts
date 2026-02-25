@@ -294,7 +294,7 @@ export const GrayscalePanelButton = GObject.registerClass(
             }
 
             if (this._monitorManager) {
-                const monitorId = this._monitorManager.connect('monitors-changed', () => {
+                const monitorId = this._monitorManager.connect('monitors-reconfigured', () => {
                     this._updateMenu();
                 });
                 this._signalIds.push({ object: this._monitorManager, id: monitorId });
@@ -387,7 +387,7 @@ export const GrayscalePanelButton = GObject.registerClass(
         /**
          * Add button to panel at specified position
          */
-        private _addToPanel(_position: string = 'right'): void {
+        private _addToPanel(_position = 'right'): void {
             Main.panel.addToStatusArea('grayscale-toggle', this);
         }
 
@@ -476,7 +476,7 @@ export class PanelIndicator implements IPanelIndicator, ExtensionComponent {
         }
     }
 
-    updateIcon(iconName?: string): void {
+    updateIcon(_iconName?: string): void {
         if (this._panelButton && this._panelButton._updateIcon) {
             this._panelButton._updateIcon();
         }
@@ -554,7 +554,7 @@ export class PanelIndicator implements IPanelIndicator, ExtensionComponent {
     /**
      * Update status based on current state
      */
-    updateStatus(active: boolean): void {
+    updateStatus(_active: boolean): void {
         if (this._panelButton && this._panelButton._updateIcon && this._panelButton._updateMenu) {
             this._panelButton._updateIcon();
             this._panelButton._updateMenu();
