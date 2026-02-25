@@ -82,3 +82,51 @@ Single-test invocations:
 - `tsc --noEmit` (via `npm run compile`) excludes `**/*.test.ts` and
   `**/*.spec.ts` in `tsconfig.json`.
 - Test compile/runtime coverage is handled by Jest + ts-jest (`jest.config.js`).
+
+## GObject Class Registration
+
+All GObject subclasses **MUST** use
+`GObject.registerClass({GTypeName: '...', Signals: {...}}, class ... extends GObject.Object {...})`.
+The `static [GObject.signals]` syntax does **NOT** register the GType and causes
+a runtime crash: `"Tried to construct an object without a GType"`. All
+GTypeNames in this project are prefixed with `Grayscale`.
+
+## TypeScript Runtime Configuration
+
+`tsconfig.runtime.json` **MUST** set `"useDefineForClassFields": false`. This
+prevents TypeScript from emitting class field initializers
+(`Object.defineProperty(...)`) that execute before `_init()` completes, breaking
+GObject construction. Never change this value to `true`.
+
+## Import Syntax in GJS
+
+Runtime code **MUST** use `gi://` and `resource:///` imports. Examples:
+
+```typescript
+import GObject from 'gi://GObject';
+import Clutter from 'gi://Clutter';
+import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+```
+
+`@girs/*` packages are for TypeScript type checking only. They must stay in
+`tsconfig.json` path aliases and must **never** appear in runtime source
+`import` statements.
+
+## Wayland Nested Shell Pattern
+
+GJS cannot unload ES modules. On Wayland, `gnome-extensions disable && enable`
+does **NOT** pick up new module code — old code stays in memory. Test code
+changes with `npm run dev:nested` (alias for
+`dbus-run-session gnome-shell --nested --wayland`). Run `npm run build:dev`
+first, then restart the nested shell. See the Development Workflow section for
+the full two-terminal cycle.
+
+## disable() Cleanup Contract
+
+`disable()` MUST be a clean teardown: remove all Clutter effects
+(`actor.remove_effect(effect)` or `removeAllEffects()`), disconnect all signals
+(save IDs at connect time, call `object.disconnect(id)`), destroy all UI widgets
+(`.destroy()`), cancel all GLib timers (`GLib.source_remove(id)`), and remove
+all keyboard shortcuts (`Main.wm.removeKeybinding('key-name')`). Any resource
+not freed here causes memory leaks or crashes on re-enable.
