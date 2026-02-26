@@ -465,6 +465,18 @@ export class PanelIndicator implements IPanelIndicator, ExtensionComponent {
     private _enabled: boolean;
     private _position: string;
 
+    // Gate informational output behind debug-logging schema key (review guideline R9)
+    private _debugLog(message: string): void {
+        try {
+            const settings = this._extension.getSettings?.();
+            if (settings?.get_boolean('debug-logging')) {
+                console.log(message);
+            }
+        } catch {
+            /* ignore — settings not yet available */
+        }
+    }
+
     constructor(extension: Extension) {
         this._extension = extension;
         this._panelButton = null;
@@ -512,7 +524,7 @@ export class PanelIndicator implements IPanelIndicator, ExtensionComponent {
     // ExtensionComponent implementation
     enable(): void {
         if (this._enabled) {
-            console.warn('[Grayscale] Panel indicator already enabled');
+            this._debugLog('[Grayscale] Panel indicator already enabled');
             return;
         }
 
@@ -526,7 +538,7 @@ export class PanelIndicator implements IPanelIndicator, ExtensionComponent {
             // Create panel button
             this._panelButton = new GrayscalePanelButton(this._extension, this._position);
 
-            console.log('[Grayscale] Panel indicator enabled');
+            this._debugLog('[Grayscale] Panel indicator enabled');
             this._enabled = true;
         } catch (error) {
             console.error('[Grayscale] Error enabling panel indicator:', error);
@@ -544,7 +556,7 @@ export class PanelIndicator implements IPanelIndicator, ExtensionComponent {
                 this._panelButton = null;
             }
 
-            console.log('[Grayscale] Panel indicator disabled');
+            this._debugLog('[Grayscale] Panel indicator disabled');
             this._enabled = false;
         } catch (error) {
             console.error('[Grayscale] Error disabling panel indicator:', error);

@@ -5,6 +5,7 @@
 
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
+import { adjustAnimationTime } from 'resource:///org/gnome/shell/misc/animationUtils.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import type {
@@ -60,6 +61,7 @@ export const EffectManager = GObject.registerClass(
         private _extension: Extension;
         private _effects: Map<string | number, any>; // Clutter.Effect instances
         private _stateManager: any = null;
+        private _settingsController: any = null;
         private _monitorManager: any = null;
         private _animationSettings: AnimationSettings;
         private _effectQueue: EffectOperation[];
@@ -67,6 +69,17 @@ export const EffectManager = GObject.registerClass(
         private _suspended: boolean;
         private _performanceMode: boolean;
         private _initialized: boolean;
+
+        // Gate informational output behind debug-logging schema key (review guideline R9)
+        private _debugLog(message: string): void {
+            try {
+                if (this._settingsController?.getSetting('debug-logging')) {
+                    console.log(message);
+                }
+            } catch {
+                /* ignore — settingsController not yet wired */
+            }
+        }
 
         constructor(extension: Extension) {
             super();
@@ -94,6 +107,7 @@ export const EffectManager = GObject.registerClass(
             try {
                 // Get component references
                 this._stateManager = this._extension.getComponent('StateManager');
+                this._settingsController = this._extension.getComponent('SettingsController');
                 this._monitorManager = this._extension.getComponent('MonitorManager');
 
                 if (!this._stateManager) {
@@ -102,7 +116,7 @@ export const EffectManager = GObject.registerClass(
 
                 // MonitorManager is optional in Phase 1 but required for full Phase 2 functionality
                 if (!this._monitorManager) {
-                    console.warn(
+                    this._debugLog(
                         '[EffectManager] MonitorManager not available, using global mode only'
                     );
                 }
@@ -114,7 +128,7 @@ export const EffectManager = GObject.registerClass(
                 this._connectStateSignals();
 
                 this._initialized = true;
-                console.log('[EffectManager] Initialized successfully');
+                this._debugLog('[EffectManager] Initialized successfully');
                 return true;
             } catch (error) {
                 console.error('[EffectManager] Initialization failed:', error);
@@ -149,10 +163,11 @@ export const EffectManager = GObject.registerClass(
             // Clear references
             this._effects.clear();
             this._stateManager = null;
+            this._settingsController = null;
             this._monitorManager = null;
             this._initialized = false;
 
-            console.log('[EffectManager] Destroyed successfully');
+            this._debugLog('[EffectManager] Destroyed successfully');
         }
 
         // IEffectManager interface implementation
@@ -214,7 +229,7 @@ export const EffectManager = GObject.registerClass(
             } = options;
 
             if (this._suspended && !force) {
-                console.log('[EffectManager] Effects suspended, skipping application');
+                this._debugLog('[EffectManager] Effects suspended, skipping application');
                 return true;
             }
 
@@ -222,7 +237,7 @@ export const EffectManager = GObject.registerClass(
                 throw new Error('EffectManager not initialized');
             }
 
-            console.log(
+            this._debugLog(
                 `[EffectManager] Applying global effect: ${enabled} (animated: ${animated})`
             );
 
@@ -287,7 +302,7 @@ export const EffectManager = GObject.registerClass(
                 throw new Error('EffectManager not initialized');
             }
 
-            console.log(
+            this._debugLog(
                 `[EffectManager] Applying monitor effect: monitor ${monitorIndex}, enabled: ${enabled}`
             );
 
@@ -311,7 +326,7 @@ export const EffectManager = GObject.registerClass(
         async removeAllEffects(options: EffectOperationOptions = {}): Promise<void> {
             const { animated = false, duration = 200 } = options;
 
-            console.log('[EffectManager] Removing all effects');
+            this._debugLog('[EffectManager] Removing all effects');
 
             const removePromises: Promise<boolean>[] = [];
 
@@ -336,7 +351,7 @@ export const EffectManager = GObject.registerClass(
             this._effects.clear();
 
             (this as any).emit('all-effects-removed');
-            console.log('[EffectManager] All effects removed');
+            this._debugLog('[EffectManager] All effects removed');
         }
 
         // State Queries
@@ -367,7 +382,7 @@ export const EffectManager = GObject.registerClass(
                 }
             }
 
-            console.log('[EffectManager] Effects suspended for performance');
+            this._debugLog('[EffectManager] Effects suspended for performance');
         }
 
         async resumeEffects(): Promise<void> {
@@ -383,7 +398,7 @@ export const EffectManager = GObject.registerClass(
                 }
             }
 
-            console.log('[EffectManager] Effects resumed');
+            this._debugLog('[EffectManager] Effects resumed');
         }
 
         setPerformanceMode(enabled: boolean): void {
@@ -397,14 +412,16 @@ export const EffectManager = GObject.registerClass(
                 this._animationSettings.duration = duration * 1000;
             }
 
-            console.log(`[EffectManager] Performance mode ${enabled ? 'enabled' : 'disabled'}`);
+            this._debugLog(`[EffectManager] Performance mode ${enabled ? 'enabled' : 'disabled'}`);
         }
 
         // Private Implementation
         private _loadAnimationSettings(): void {
             const duration = this._stateManager.getSetting('animationDuration');
             if (typeof duration === 'number') {
-                this._animationSettings.duration = duration * 1000; // Convert to ms
+                // Wrap with adjustAnimationTime() to respect "Reduce Motion" and
+                // "Slow Down" accessibility settings (review guideline / AGENTS.md).
+                this._animationSettings.duration = adjustAnimationTime(duration * 1000);
             }
 
             const performanceMode = this._stateManager.getSetting('performanceMode');
@@ -519,7 +536,7 @@ export const EffectManager = GObject.registerClass(
             try {
                 // Check if effect already exists
                 if (this._effects.has('stage')) {
-                    console.log('[EffectManager] Stage effect already active');
+                    this._debugLog('[EffectManager] Stage effect already active');
                     return true;
                 }
 
@@ -539,7 +556,7 @@ export const EffectManager = GObject.registerClass(
                     (this as any).emit('effect-applied', -1, 'stage', true);
                 }
 
-                console.log('[EffectManager] Stage effect added successfully');
+                this._debugLog('[EffectManager] Stage effect added successfully');
                 return true;
             } catch (error) {
                 console.error('[EffectManager] Failed to add stage effect:', error);
@@ -552,7 +569,7 @@ export const EffectManager = GObject.registerClass(
 
             try {
                 if (!this._effects.has('stage')) {
-                    console.log('[EffectManager] No stage effect to remove');
+                    this._debugLog('[EffectManager] No stage effect to remove');
                     return true;
                 }
 
@@ -565,7 +582,7 @@ export const EffectManager = GObject.registerClass(
                     (this as any).emit('effect-removed', -1, 'stage', true);
                 }
 
-                console.log('[EffectManager] Stage effect removed successfully');
+                this._debugLog('[EffectManager] Stage effect removed successfully');
                 return true;
             } catch (error) {
                 console.error('[EffectManager] Failed to remove stage effect:', error);
@@ -585,7 +602,7 @@ export const EffectManager = GObject.registerClass(
 
                 // Check if effect already exists
                 if (this._effects.has(key)) {
-                    console.log(`[EffectManager] Monitor ${monitorIndex} effect already active`);
+                    this._debugLog(`[EffectManager] Monitor ${monitorIndex} effect already active`);
                     return true;
                 }
 
@@ -625,7 +642,7 @@ export const EffectManager = GObject.registerClass(
                     (this as any).emit('effect-applied', monitorIndex, 'monitor', true);
                 }
 
-                console.log(`[EffectManager] Monitor ${monitorIndex} effect added successfully`);
+                this._debugLog(`[EffectManager] Monitor ${monitorIndex} effect added successfully`);
                 return true;
             } catch (error) {
                 console.error(
@@ -646,7 +663,7 @@ export const EffectManager = GObject.registerClass(
                 const key = monitorIndex.toString();
 
                 if (!this._effects.has(key)) {
-                    console.log(`[EffectManager] No monitor ${monitorIndex} effect to remove`);
+                    this._debugLog(`[EffectManager] No monitor ${monitorIndex} effect to remove`);
                     return true;
                 }
 
@@ -671,7 +688,9 @@ export const EffectManager = GObject.registerClass(
                     (this as any).emit('effect-removed', monitorIndex, 'monitor', true);
                 }
 
-                console.log(`[EffectManager] Monitor ${monitorIndex} effect removed successfully`);
+                this._debugLog(
+                    `[EffectManager] Monitor ${monitorIndex} effect removed successfully`
+                );
                 return true;
             } catch (error) {
                 console.error(

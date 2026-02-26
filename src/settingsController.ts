@@ -46,6 +46,17 @@ export const SettingsController = GObject.registerClass(
         private _initialized: boolean;
         private _validationRules: Map<string, ValidationRule>;
 
+        // Gate informational output behind debug-logging schema key (review guideline R9)
+        private _debugLog(message: string): void {
+            try {
+                if (this._settings?.get_boolean('debug-logging')) {
+                    console.log(message);
+                }
+            } catch {
+                /* ignore — settings not yet available */
+            }
+        }
+
         constructor(extension: Extension) {
             super();
 
@@ -79,7 +90,7 @@ export const SettingsController = GObject.registerClass(
                 await this._validateAllSettings();
 
                 this._initialized = true;
-                console.log('[SettingsController] Initialized successfully');
+                this._debugLog('[SettingsController] Initialized successfully');
                 return true;
             } catch (error) {
                 console.error('[SettingsController] Initialization failed:', error);
@@ -111,7 +122,7 @@ export const SettingsController = GObject.registerClass(
             this._validationRules.clear();
             this._initialized = false;
 
-            console.log('[SettingsController] Destroyed successfully');
+            this._debugLog('[SettingsController] Destroyed successfully');
         }
 
         // Settings API - renamed to avoid conflicts with GObject methods
@@ -202,9 +213,8 @@ export const SettingsController = GObject.registerClass(
                 const newValue = this.getSetting(key);
                 (this as any).emit('setting-changed', key, this._settings.get_value(key));
 
-                console.log(
-                    `[SettingsController] Reset setting '${key}' to default value:`,
-                    newValue
+                this._debugLog(
+                    `[SettingsController] Reset setting '${key}' to default value: ${JSON.stringify(newValue)}`
                 );
                 return true;
             } catch (error) {
@@ -290,7 +300,7 @@ export const SettingsController = GObject.registerClass(
         }
 
         private async _validateAllSettings(): Promise<void> {
-            console.log('[SettingsController] Validating all settings...');
+            this._debugLog('[SettingsController] Validating all settings...');
 
             if (!this._settings) {
                 return;
@@ -313,7 +323,7 @@ export const SettingsController = GObject.registerClass(
                 for (const { key } of invalidSettings) {
                     try {
                         this.resetSetting(key);
-                        console.log(`[SettingsController] Reset invalid setting: ${key}`);
+                        this._debugLog(`[SettingsController] Reset invalid setting: ${key}`);
                     } catch (error) {
                         console.error(
                             `[SettingsController] Failed to reset setting '${key}':`,
@@ -382,11 +392,6 @@ export const SettingsController = GObject.registerClass(
                 (value): value is Record<string, unknown> =>
                     value !== null && typeof value === 'object'
             );
-            this._validationRules.set(
-                'performance-metrics',
-                (value): value is Record<string, unknown> =>
-                    value !== null && typeof value === 'object'
-            );
         }
 
         // Signal handling
@@ -410,7 +415,9 @@ export const SettingsController = GObject.registerClass(
                 this._connections.set(key, signalId);
             }
 
-            console.log(`[SettingsController] Connected to ${keys.length} setting change signals`);
+            this._debugLog(
+                `[SettingsController] Connected to ${keys.length} setting change signals`
+            );
         }
 
         private _disconnectSettings(): void {
@@ -418,12 +425,12 @@ export const SettingsController = GObject.registerClass(
                 return;
             }
 
-            for (const [key, signalId] of this._connections) {
+            for (const [_key, signalId] of this._connections) {
                 this._settings.disconnect(signalId);
             }
 
             this._connections.clear();
-            console.log('[SettingsController] Disconnected all setting signals');
+            this._debugLog('[SettingsController] Disconnected all setting signals');
         }
 
         // Utility methods
