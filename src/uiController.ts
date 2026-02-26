@@ -76,6 +76,21 @@ export const UIController = GObject.registerClass(
         // UI preferences
         private _uiPreferences: UIPreferences;
 
+        // Tracked signal connections — disconnected in destroy() (review guideline R3)
+        private _signalConnectionIds: { object: any; id: number }[] = [];
+
+        // Gate informational output behind debug-logging schema key (review guideline R9)
+        private _debugLog(message: string): void {
+            try {
+                const settings = this._extension.getSettings();
+                if (settings?.get_boolean('debug-logging')) {
+                    console.log(message);
+                }
+            } catch {
+                /* ignore — settings not yet available */
+            }
+        }
+
         constructor(extension: Extension) {
             super();
 
@@ -132,7 +147,7 @@ export const UIController = GObject.registerClass(
                 this._connectUISettingsSignals();
 
                 this._initialized = true;
-                console.log('[UIController] Initialized successfully');
+                this._debugLog('[UIController] Initialized successfully');
                 return true;
             } catch (error) {
                 console.error('[UIController] Initialization failed:', error);
@@ -164,6 +179,18 @@ export const UIController = GObject.registerClass(
             // Clear notifications
             this._clearAllNotifications();
 
+            // Disconnect all tracked signal connections (review guideline R3)
+            for (const { object, id } of this._signalConnectionIds) {
+                try {
+                    if (object && id) {
+                        object.disconnect(id);
+                    }
+                } catch {
+                    // ignore disconnect errors during cleanup
+                }
+            }
+            this._signalConnectionIds = [];
+
             // Clear references
             this._keyboardShortcuts.clear();
             this._notifications.clear();
@@ -172,7 +199,7 @@ export const UIController = GObject.registerClass(
             this._initialized = false;
             this._uiComponentsEnabled = false;
 
-            console.log('[UIController] Destroyed successfully');
+            this._debugLog('[UIController] Destroyed successfully');
         }
 
         // IUIController implementation
@@ -229,7 +256,9 @@ export const UIController = GObject.registerClass(
                     notificationTimeout: settings.get_int('notification-timeout') ?? 3000,
                 };
 
-                console.log('[UIController] UI preferences loaded:', this._uiPreferences);
+                this._debugLog(
+                    `[UIController] UI preferences loaded: ${JSON.stringify(this._uiPreferences)}`
+                );
             } catch (error) {
                 console.warn(
                     '[UIController] Failed to load UI preferences, using defaults:',
@@ -252,7 +281,7 @@ export const UIController = GObject.registerClass(
                 }
 
                 this._uiComponentsEnabled = true;
-                console.log('[UIController] UI components initialized');
+                this._debugLog('[UIController] UI components initialized');
             } catch (error) {
                 console.error('[UIController] Failed to initialize UI components:', error);
                 throw error;
@@ -262,7 +291,7 @@ export const UIController = GObject.registerClass(
         // Enable Quick Settings integration
         private async _enableQuickSettings(): Promise<void> {
             if (this._quickSettings) {
-                console.warn('[UIController] Quick Settings already enabled');
+                this._debugLog('[UIController] Quick Settings already enabled');
                 return;
             }
 
@@ -271,7 +300,7 @@ export const UIController = GObject.registerClass(
                 this._quickSettings.enable();
 
                 (this as any).emit('ui-state-changed', 'quick-settings', true);
-                console.log('[UIController] Quick Settings integration enabled');
+                this._debugLog('[UIController] Quick Settings integration enabled');
             } catch (error) {
                 console.error('[UIController] Failed to enable Quick Settings:', error);
                 // Don't throw - this is optional functionality
@@ -289,7 +318,7 @@ export const UIController = GObject.registerClass(
                 this._quickSettings = null;
 
                 (this as any).emit('ui-state-changed', 'quick-settings', false);
-                console.log('[UIController] Quick Settings integration disabled');
+                this._debugLog('[UIController] Quick Settings integration disabled');
             } catch (error) {
                 console.error('[UIController] Failed to disable Quick Settings:', error);
             }
@@ -298,7 +327,7 @@ export const UIController = GObject.registerClass(
         // Enable Panel Indicator
         private async _enablePanelIndicator(): Promise<void> {
             if (this._panelIndicator) {
-                console.warn('[UIController] Panel Indicator already enabled');
+                this._debugLog('[UIController] Panel Indicator already enabled');
                 return;
             }
 
@@ -313,7 +342,7 @@ export const UIController = GObject.registerClass(
                 this._panelIndicator.enable();
 
                 (this as any).emit('ui-state-changed', 'panel-indicator', true);
-                console.log('[UIController] Panel Indicator enabled');
+                this._debugLog('[UIController] Panel Indicator enabled');
             } catch (error) {
                 console.error('[UIController] Failed to enable Panel Indicator:', error);
                 // Don't throw - this is optional functionality
@@ -331,7 +360,7 @@ export const UIController = GObject.registerClass(
                 this._panelIndicator = null;
 
                 (this as any).emit('ui-state-changed', 'panel-indicator', false);
-                console.log('[UIController] Panel Indicator disabled');
+                this._debugLog('[UIController] Panel Indicator disabled');
             } catch (error) {
                 console.error('[UIController] Failed to disable Panel Indicator:', error);
             }
@@ -341,8 +370,8 @@ export const UIController = GObject.registerClass(
         private _connectUISettingsSignals(): void {
             const settings = this._extension.getSettings();
 
-            // Panel indicator visibility
-            settings.connect('changed::show-panel-indicator', () => {
+            // Panel indicator visibility — track ID for disconnection in destroy()
+            const showPanelId = settings.connect('changed::show-panel-indicator', () => {
                 const enabled = settings.get_boolean('show-panel-indicator');
                 this._uiPreferences.showPanelIndicator = enabled;
 
@@ -352,9 +381,10 @@ export const UIController = GObject.registerClass(
                     this._disablePanelIndicator();
                 }
             });
+            this._signalConnectionIds.push({ object: settings, id: showPanelId });
 
             // Quick Settings visibility
-            settings.connect('changed::show-quick-settings', () => {
+            const showQuickId = settings.connect('changed::show-quick-settings', () => {
                 const enabled = settings.get_boolean('show-quick-settings');
                 this._uiPreferences.showQuickSettings = enabled;
 
@@ -364,9 +394,10 @@ export const UIController = GObject.registerClass(
                     this._disableQuickSettings();
                 }
             });
+            this._signalConnectionIds.push({ object: settings, id: showQuickId });
 
             // Panel position
-            settings.connect('changed::panel-position', () => {
+            const panelPositionId = settings.connect('changed::panel-position', () => {
                 const position = settings.get_string('panel-position');
                 this._uiPreferences.panelPosition = position;
 
@@ -374,20 +405,23 @@ export const UIController = GObject.registerClass(
                     this._panelIndicator.updatePosition(position);
                 }
             });
+            this._signalConnectionIds.push({ object: settings, id: panelPositionId });
 
             // Notification preferences
-            settings.connect('changed::show-notifications', () => {
+            const showNotifId = settings.connect('changed::show-notifications', () => {
                 this._uiPreferences.showNotifications = settings.get_boolean('show-notifications');
             });
+            this._signalConnectionIds.push({ object: settings, id: showNotifId });
 
-            settings.connect('changed::notification-timeout', () => {
+            const notifTimeoutId = settings.connect('changed::notification-timeout', () => {
                 this._uiPreferences.notificationTimeout = settings.get_int('notification-timeout');
             });
+            this._signalConnectionIds.push({ object: settings, id: notifTimeoutId });
         }
 
         // Disable all UI components
         private _disableAllUIComponents(): void {
-            console.log('[UIController] Disabling all UI components...');
+            this._debugLog('[UIController] Disabling all UI components...');
 
             this._disableQuickSettings();
             this._disablePanelIndicator();
@@ -411,7 +445,7 @@ export const UIController = GObject.registerClass(
                     }
                     break;
                 default:
-                    console.warn(`[UIController] Unknown UI component: ${componentName}`);
+                    console.warn(`[UIController] Unknown UI component: ${componentName}`); // deliberate — always visible
             }
         }
 
@@ -434,8 +468,8 @@ export const UIController = GObject.registerClass(
                     await this._registerGlobalToggleShortcut(keybinding);
                 }
 
-                // Listen for keybinding changes
-                this._settingsController.connect(
+                // Listen for keybinding changes — track ID for disconnection in destroy()
+                const settingChangedId = this._settingsController.connect(
                     'setting-changed',
                     (controller: any, key: string, variant: any) => {
                         if (key === 'toggle-keybinding') {
@@ -443,8 +477,12 @@ export const UIController = GObject.registerClass(
                         }
                     }
                 );
+                this._signalConnectionIds.push({
+                    object: this._settingsController,
+                    id: settingChangedId,
+                });
 
-                console.log('[UIController] Keyboard shortcuts setup completed');
+                this._debugLog('[UIController] Keyboard shortcuts setup completed');
             } catch (error) {
                 console.error('[UIController] Failed to setup keyboard shortcuts:', error);
                 throw error;
@@ -467,7 +505,7 @@ export const UIController = GObject.registerClass(
                     Meta.KeyBindingFlags.NONE,
                     Shell.ActionMode.ALL,
                     () => {
-                        console.log('[UIController] Global toggle shortcut activated');
+                        this._debugLog('[UIController] Global toggle shortcut activated');
                         this._handleGlobalToggle();
                     }
                 );
@@ -478,7 +516,7 @@ export const UIController = GObject.registerClass(
                         accelerators: accelerators.slice(),
                     });
 
-                    console.log(
+                    this._debugLog(
                         `[UIController] Global toggle shortcut registered: ${accelerators.join(', ')}`
                     );
                     return true;
@@ -501,7 +539,7 @@ export const UIController = GObject.registerClass(
                 Main.wm.removeKeybinding(shortcutName);
                 this._keyboardShortcuts.delete(shortcutName);
 
-                console.log(`[UIController] Shortcut unregistered: ${shortcutName}`);
+                this._debugLog(`[UIController] Shortcut unregistered: ${shortcutName}`);
             } catch (error) {
                 console.warn(
                     `[UIController] Failed to unregister shortcut ${shortcutName}:`,
@@ -511,7 +549,7 @@ export const UIController = GObject.registerClass(
         }
 
         private _removeAllKeyboardShortcuts(): void {
-            console.log('[UIController] Removing all keyboard shortcuts...');
+            this._debugLog('[UIController] Removing all keyboard shortcuts...');
 
             for (const [shortcutName] of this._keyboardShortcuts) {
                 this._unregisterShortcut(shortcutName);
@@ -521,7 +559,7 @@ export const UIController = GObject.registerClass(
         private async _handleKeybindingChange(variant: any): Promise<void> {
             try {
                 const newKeybinding = variant.get_strv();
-                console.log(`[UIController] Keybinding changed: ${newKeybinding.join(', ')}`);
+                this._debugLog(`[UIController] Keybinding changed: ${newKeybinding.join(', ')}`);
 
                 // Re-register the global toggle shortcut with new binding
                 await this._registerGlobalToggleShortcut(newKeybinding);
@@ -603,24 +641,30 @@ export const UIController = GObject.registerClass(
             }
         }
 
-        // State Change Handling
+        // State Change Handling — all IDs tracked for disconnection in destroy()
         private _connectStateSignals(): void {
-            this._stateManager.connect(
+            const stateChangedId = this._stateManager.connect(
                 'state-changed',
                 (manager: any, globalState: boolean, previousState: boolean, options: any) =>
                     this._handleStateChange(globalState, previousState, options)
             );
+            this._signalConnectionIds.push({ object: this._stateManager, id: stateChangedId });
 
-            this._stateManager.connect(
+            const monitorStateChangedId = this._stateManager.connect(
                 'monitor-state-changed',
                 (manager: any, monitorIndex: number, enabled: boolean, previousState: any) =>
                     this._handleMonitorStateChange(monitorIndex, enabled, previousState)
             );
+            this._signalConnectionIds.push({
+                object: this._stateManager,
+                id: monitorStateChangedId,
+            });
 
-            this._stateManager.connect(
+            const settingsChangedId = this._stateManager.connect(
                 'settings-changed',
                 (manager: any, key: string, variant: any) => this._handleSettingChange(key, variant)
             );
+            this._signalConnectionIds.push({ object: this._stateManager, id: settingsChangedId });
         }
 
         private _handleStateChange(
@@ -629,7 +673,7 @@ export const UIController = GObject.registerClass(
             _options: any
         ): void {
             // Handle visual feedback for state changes
-            console.log(
+            this._debugLog(
                 `[UIController] Global state changed: ${globalState} (was: ${previousState})`
             );
 
@@ -642,7 +686,7 @@ export const UIController = GObject.registerClass(
             enabled: boolean,
             previousState: any
         ): void {
-            console.log(
+            this._debugLog(
                 `[UIController] Monitor ${monitorIndex} state changed: ${enabled} (was: ${previousState})`
             );
 
@@ -652,7 +696,7 @@ export const UIController = GObject.registerClass(
         private _handleSettingChange(key: string, variant: any): void {
             if (key === 'show-notifications') {
                 const enabled = variant.get_boolean();
-                console.log(`[UIController] Notifications ${enabled ? 'enabled' : 'disabled'}`);
+                this._debugLog(`[UIController] Notifications ${enabled ? 'enabled' : 'disabled'}`);
             }
         }
 
@@ -713,7 +757,7 @@ export const UIController = GObject.registerClass(
         }
 
         private _clearAllNotifications(): void {
-            console.log('[UIController] Clearing all notifications...');
+            this._debugLog('[UIController] Clearing all notifications...');
 
             for (const [id] of this._notifications) {
                 this._clearNotification(id);
@@ -728,7 +772,7 @@ export const UIController = GObject.registerClass(
         async updateKeybinding(accelerators: string[]): Promise<boolean> {
             try {
                 await this._settingsController.setSetting('toggle-keybinding', accelerators);
-                console.log(`[UIController] Keybinding updated: ${accelerators.join(', ')}`);
+                this._debugLog(`[UIController] Keybinding updated: ${accelerators.join(', ')}`);
                 return true;
             } catch (error) {
                 console.error('[UIController] Failed to update keybinding:', error);
@@ -738,11 +782,11 @@ export const UIController = GObject.registerClass(
 
         // Test/Debug methods
         async testToggle(): Promise<boolean> {
-            console.log('[UIController] Testing toggle functionality...');
+            this._debugLog('[UIController] Testing toggle functionality...');
 
             try {
                 const result = await this.requestToggle('test');
-                console.log(`[UIController] Test toggle result: ${result}`);
+                this._debugLog(`[UIController] Test toggle result: ${result}`);
                 return result;
             } catch (error) {
                 console.error('[UIController] Test toggle failed:', error);
@@ -751,6 +795,7 @@ export const UIController = GObject.registerClass(
         }
 
         dumpShortcuts(): void {
+            // dumpShortcuts() is an explicit debug method — always log to console
             console.log('[UIController] Registered shortcuts:');
             for (const [name, shortcut] of this._keyboardShortcuts) {
                 console.log(
