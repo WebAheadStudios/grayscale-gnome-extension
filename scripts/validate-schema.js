@@ -1,14 +1,23 @@
 #!/usr/bin/env node
 
 /**
- * Graceful XML schema validation wrapper.
- * Runs xmllint --noout on each supplied file.  If xmllint is not installed
- * (ENOENT) the script prints a notice and exits 0 so development commits are
- * not blocked in minimal environments.  CI systems that have libxml2-utils
- * installed will still receive full validation.
+ * XML well-formedness validation using fast-xml-parser (pure JavaScript,
+ * no native binaries, no WASM, no worker threads).
+ *
+ * Replaces the previous approach of calling the system xmllint binary.
+ * fast-xml-parser is a devDependency so validation always works without
+ * any system-level setup.
+ *
+ * Usage (called by lint-staged):
+ *   node scripts/validate-schema.js <file1.xml> [file2.xml ...]
+ *
+ * XMLValidator.validate(text) returns:
+ *   - true          : well-formed XML
+ *   - { err: { msg, line, col } } : parse error details
  */
 
-import { execFileSync } from 'child_process';
+import { XMLValidator } from 'fast-xml-parser';
+import { readFileSync } from 'fs';
 
 const files = process.argv.slice(2);
 
@@ -16,19 +25,30 @@ if (files.length === 0) {
     process.exit(0);
 }
 
-try {
-    execFileSync('xmllint', ['--noout', ...files], { stdio: 'pipe' });
-    console.log('✅ XML schema validation passed');
-} catch (err) {
-    if (err.code === 'ENOENT') {
-        console.log('xmllint not found — skipping XML schema validation');
-        // Exit 0: not having xmllint is a dev-environment concern, not a code error
-        process.exit(0);
+let allValid = true;
+
+for (const filePath of files) {
+    let contents;
+    try {
+        contents = readFileSync(filePath, 'utf8');
+    } catch (err) {
+        console.error(`❌ Could not read ${filePath}: ${err.message}`);
+        allValid = false;
+        continue;
     }
-    // xmllint found but validation actually failed — surface the error
-    console.error('❌ XML schema validation failed');
-    if (err.stderr) {
-        console.error(err.stderr.toString());
+
+    const result = XMLValidator.validate(contents, {
+        allowBooleanAttributes: true,
+    });
+
+    if (result === true) {
+        console.log(`✅ ${filePath} — well-formed XML`);
+    } else {
+        // result.err = { msg, line, col }
+        const { msg = 'unknown error', line, col } = result.err ?? {};
+        console.error(`❌ ${filePath}:${line}:${col} — ${msg}`);
+        allValid = false;
     }
-    process.exit(1);
 }
+
+process.exit(allValid ? 0 : 1);
