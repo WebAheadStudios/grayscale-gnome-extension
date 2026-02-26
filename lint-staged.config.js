@@ -6,5 +6,8 @@ export default {
     // and gi:// path aliases), producing false-positive errors.
     'src/**/*.ts': () => 'npm run compile',
     'src/metadata.json': ['node scripts/validate-metadata.js'],
-    'schemas/*.gschema.xml': ['xmllint --noout'],
+    // Use a Node.js wrapper so the xmllint check gracefully skips when
+    // xmllint is not installed (lint-staged uses execa, not a shell, so
+    // shell builtins like `command -v` cannot be used directly).
+    'schemas/*.gschema.xml': ['node scripts/validate-schema.js'],
 };

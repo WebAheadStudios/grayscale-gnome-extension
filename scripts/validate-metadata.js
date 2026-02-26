@@ -81,8 +81,14 @@ function validateMetadata() {
         }
 
         // Validate optional fields if present
-        if (metadata.version && typeof metadata.version !== 'string') {
-            console.error('❌ version field must be a string');
+        // GNOME extension spec requires version to be a positive integer.
+        // Accept either integer (required by EGO) or string for flexibility.
+        if (
+            metadata.version !== undefined &&
+            typeof metadata.version !== 'number' &&
+            typeof metadata.version !== 'string'
+        ) {
+            console.error('❌ version field must be an integer or string');
             process.exit(1);
         }
 

@@ -91,7 +91,7 @@
     "extensionMetadata": {
         "uuid": "grayscale-toggle@webaheadstudios.com",
         "name": "Grayscale Toggle",
-        "shell-version": ["46"],
+        "shell-version": ["45", "46"],
         "gettext-domain": "grayscale-toggle",
         "settings-schema": "org.gnome.shell.extensions.grayscale-toggle"
     }

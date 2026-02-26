@@ -1,202 +1,190 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist gettext-domain="grayscale-toggle">
 
-  <schema id="org.gnome.shell.extensions.grayscale-toggle"
-    path="/org/gnome/shell/extensions/grayscale-toggle/">
+    <schema id="org.gnome.shell.extensions.grayscale-toggle"
+        path="/org/gnome/shell/extensions/grayscale-toggle/">
 
-    <!-- Global State Settings -->
-    <key name="grayscale-enabled" type="b">
-      <default>false</default>
-      <summary>Enable grayscale effect</summary>
-      <description>Whether the grayscale effect is currently enabled globally</description>
-    </key>
+        <!-- Global State Settings -->
+        <key name="grayscale-enabled" type="b">
+            <default>false</default>
+            <summary>Enable grayscale effect</summary>
+            <description>Whether the grayscale effect is currently enabled globally</description>
+        </key>
 
-    <!-- Keyboard Shortcuts -->
-    <key name="toggle-keybinding" type="as">
-      <default>["&lt;Super&gt;g"]</default>
-      <summary>Toggle grayscale keybinding</summary>
-      <description>Keyboard shortcut to toggle grayscale effect</description>
-    </key>
+        <!-- Keyboard Shortcuts -->
+        <key name="toggle-keybinding" type="as">
+            <default>["&lt;Super&gt;g"]</default>
+            <summary>Toggle grayscale keybinding</summary>
+            <description>Keyboard shortcut to toggle grayscale effect</description>
+        </key>
 
-    <!-- UI Settings -->
-    <key name="show-panel-indicator" type="b">
-      <default>true</default>
-      <summary>Show panel indicator</summary>
-      <description>Whether to display the grayscale toggle indicator in the top panel</description>
-    </key>
+        <!-- UI Settings -->
+        <key name="show-panel-indicator" type="b">
+            <default>true</default>
+            <summary>Show panel indicator</summary>
+            <description>Whether to display the grayscale toggle indicator in the top panel</description>
+        </key>
 
-    <key name="panel-position" type="s">
-      <choices>
-        <choice value="left" />
-        <choice value="center" />
-        <choice value="right" />
-      </choices>
-      <default>"right"</default>
-      <summary>Panel indicator position</summary>
-      <description>Position of the panel indicator in the top panel</description>
-    </key>
+        <key name="panel-position" type="s">
+            <choices>
+                <choice value="left" />
+                <choice value="center" />
+                <choice value="right" />
+            </choices>
+            <default>"right"</default>
+            <summary>Panel indicator position</summary>
+            <description>Position of the panel indicator in the top panel</description>
+        </key>
 
-    <key name="show-quick-settings" type="b">
-      <default>true</default>
-      <summary>Show in Quick Settings</summary>
-      <description>Whether to add a toggle to the GNOME Quick Settings panel</description>
-    </key>
+        <key name="show-quick-settings" type="b">
+            <default>true</default>
+            <summary>Show in Quick Settings</summary>
+            <description>Whether to add a toggle to the GNOME Quick Settings panel</description>
+        </key>
 
-    <key name="show-notifications" type="b">
-      <default>true</default>
-      <summary>Show notifications</summary>
-      <description>Whether to display notifications when grayscale state changes</description>
-    </key>
+        <key name="show-notifications" type="b">
+            <default>true</default>
+            <summary>Show notifications</summary>
+            <description>Whether to display notifications when grayscale state changes</description>
+        </key>
 
-    <key name="notification-timeout" type="u">
-      <default>3000</default>
-      <range min="1000" max="10000" />
-      <summary>Notification timeout</summary>
-      <description>How long notifications stay visible in milliseconds</description>
-    </key>
+        <key name="notification-timeout" type="u">
+            <default>3000</default>
+            <range min="1000" max="10000" />
+            <summary>Notification timeout</summary>
+            <description>How long notifications stay visible in milliseconds</description>
+        </key>
 
-    <!-- Animation Settings -->
-    <key name="animation-duration" type="u">
-      <default>300</default>
-      <range min="0" max="2000" />
-      <summary>Animation duration</summary>
-      <description>Duration of grayscale effect transitions in milliseconds</description>
-    </key>
+        <!-- Animation Settings -->
+        <key name="animation-duration" type="u">
+            <default>300</default>
+            <range min="0" max="2000" />
+            <summary>Animation duration</summary>
+            <description>Duration of grayscale effect transitions in milliseconds</description>
+        </key>
 
-    <!-- Effect Settings -->
-    <key name="grayscale-intensity" type="d">
-      <default>1.0</default>
-      <range min="0.0" max="1.0" />
-      <summary>Grayscale intensity</summary>
-      <description>Intensity of the grayscale effect from 0.0 (no effect) to 1.0 (full grayscale)</description>
-    </key>
+        <!-- Effect Settings -->
+        <key name="grayscale-intensity" type="d">
+            <default>1.0</default>
+            <range min="0.0" max="1.0" />
+            <summary>Grayscale intensity</summary>
+            <description>Intensity of the grayscale effect from 0.0 (no effect) to 1.0 (full
+                grayscale)</description>
+        </key>
 
-    <!-- Performance Settings -->
-    <key name="effect-quality" type="s">
-      <choices>
-        <choice value="low" />
-        <choice value="medium" />
-        <choice value="high" />
-      </choices>
-      <default>"high"</default>
-      <summary>Effect quality</summary>
-      <description>Quality level of the grayscale effect (affects performance)</description>
-    </key>
+        <!-- Performance Settings -->
+        <key name="effect-quality" type="s">
+            <choices>
+                <choice value="low" />
+                <choice value="medium" />
+                <choice value="high" />
+            </choices>
+            <default>"high"</default>
+            <summary>Effect quality</summary>
+            <description>Quality level of the grayscale effect (affects performance)</description>
+        </key>
 
-    <key name="performance-mode" type="b">
-      <default>false</default>
-      <summary>Performance mode</summary>
-      <description>Enable performance optimizations for lower-end hardware</description>
-    </key>
+        <key name="performance-mode" type="b">
+            <default>false</default>
+            <summary>Performance mode</summary>
+            <description>Enable performance optimizations for lower-end hardware</description>
+        </key>
 
-    <!-- Multi-Monitor Settings -->
-    <key name="per-monitor-mode" type="b">
-      <default>false</default>
-      <summary>Per-monitor mode</summary>
-      <description>Enable independent control for each monitor</description>
-    </key>
+        <!-- Multi-Monitor Settings -->
+        <key name="per-monitor-mode" type="b">
+            <default>false</default>
+            <summary>Per-monitor mode</summary>
+            <description>Enable independent control for each monitor</description>
+        </key>
 
-    <!-- Advanced Settings -->
-    <key name="auto-enable-on-startup" type="b">
-      <default>false</default>
-      <summary>Auto-enable on startup</summary>
-      <description>Automatically enable grayscale when the extension starts</description>
-    </key>
+        <!-- Advanced Settings -->
+        <key name="auto-enable-on-startup" type="b">
+            <default>false</default>
+            <summary>Auto-enable on startup</summary>
+            <description>Automatically enable grayscale when the extension starts</description>
+        </key>
 
-    <key name="auto-enable-startup" type="b">
-      <default>false</default>
-      <summary>Auto-enable startup</summary>
-      <description>Automatically enable grayscale when extension starts (alias for compatibility)</description>
-    </key>
+        <key name="remember-state" type="b">
+            <default>true</default>
+            <summary>Remember last state</summary>
+            <description>Restore previous grayscale state on startup</description>
+        </key>
 
-    <key name="remember-state" type="b">
-      <default>true</default>
-      <summary>Remember last state</summary>
-      <description>Restore previous grayscale state on startup</description>
-    </key>
+        <key name="auto-restore-states" type="b">
+            <default>true</default>
+            <summary>Auto-restore states</summary>
+            <description>Remember and restore individual monitor states</description>
+        </key>
 
-    <key name="auto-restore-states" type="b">
-      <default>true</default>
-      <summary>Auto-restore states</summary>
-      <description>Remember and restore individual monitor states</description>
-    </key>
+        <key name="debug-logging" type="b">
+            <default>false</default>
+            <summary>Debug logging</summary>
+            <description>Enable detailed debugging information in system logs</description>
+        </key>
 
-    <key name="debug-logging" type="b">
-      <default>false</default>
-      <summary>Debug logging</summary>
-      <description>Enable detailed debugging information in system logs</description>
-    </key>
+        <!-- State Persistence -->
+        <key name="global-enabled" type="b">
+            <default>false</default>
+            <summary>Global enabled state</summary>
+            <description>Persistent storage for global grayscale state</description>
+        </key>
 
-    <!-- State Persistence -->
-    <key name="global-enabled" type="b">
-      <default>false</default>
-      <summary>Global enabled state</summary>
-      <description>Persistent storage for global grayscale state</description>
-    </key>
+        <key name="monitor-states" type="a{ib}">
+            <default>{}</default>
+            <summary>Monitor states</summary>
+            <description>Persistent storage for per-monitor grayscale states</description>
+        </key>
 
-    <key name="monitor-states" type="a{ib}">
-      <default>{}</default>
-      <summary>Monitor states</summary>
-      <description>Persistent storage for per-monitor grayscale states</description>
-    </key>
+        <!-- Multi-Monitor Configuration -->
+        <key name="monitor-exclusions" type="ai">
+            <default>[]</default>
+            <summary>Monitor exclusions</summary>
+            <description>List of monitor indices to exclude from grayscale effects</description>
+        </key>
 
-    <!-- Multi-Monitor Configuration -->
-    <key name="monitor-exclusions" type="ai">
-      <default>[]</default>
-      <summary>Monitor exclusions</summary>
-      <description>List of monitor indices to exclude from grayscale effects</description>
-    </key>
+        <key name="monitor-layout-config" type="a{sv}">
+            <default>{}</default>
+            <summary>Monitor layout configuration</summary>
+            <description>Configuration data for different monitor layouts and arrangements</description>
+        </key>
 
-    <key name="monitor-layout-config" type="a{sv}">
-      <default>{}</default>
-      <summary>Monitor layout configuration</summary>
-      <description>Configuration data for different monitor layouts and arrangements</description>
-    </key>
+        <key name="primary-monitor-only" type="b">
+            <default>false</default>
+            <summary>Primary monitor only</summary>
+            <description>When enabled, effects only apply to the primary monitor</description>
+        </key>
 
-    <key name="primary-monitor-only" type="b">
-      <default>false</default>
-      <summary>Primary monitor only</summary>
-      <description>When enabled, effects only apply to the primary monitor</description>
-    </key>
+        <key name="monitor-detection-sensitivity" type="s">
+            <choices>
+                <choice value="low" />
+                <choice value="medium" />
+                <choice value="high" />
+            </choices>
+            <default>"medium"</default>
+            <summary>Monitor detection sensitivity</summary>
+            <description>Sensitivity level for monitor hotplug detection</description>
+        </key>
 
-    <key name="monitor-detection-sensitivity" type="s">
-      <choices>
-        <choice value="low" />
-        <choice value="medium" />
-        <choice value="high" />
-      </choices>
-      <default>"medium"</default>
-      <summary>Monitor detection sensitivity</summary>
-      <description>Sensitivity level for monitor hotplug detection</description>
-    </key>
+        <key name="auto-sync-monitors" type="b">
+            <default>true</default>
+            <summary>Auto-sync monitors</summary>
+            <description>Automatically sync monitor states when monitors are connected/disconnected</description>
+        </key>
 
-    <key name="auto-sync-monitors" type="b">
-      <default>true</default>
-      <summary>Auto-sync monitors</summary>
-      <description>Automatically sync monitor states when monitors are connected/disconnected</description>
-    </key>
+        <!-- Advanced Multi-Monitor Settings -->
+        <key name="preserve-monitor-states" type="b">
+            <default>true</default>
+            <summary>Preserve monitor states</summary>
+            <description>Preserve individual monitor states across layout changes</description>
+        </key>
 
-    <!-- Advanced Multi-Monitor Settings -->
-    <key name="preserve-monitor-states" type="b">
-      <default>true</default>
-      <summary>Preserve monitor states</summary>
-      <description>Preserve individual monitor states across layout changes</description>
-    </key>
+        <key name="hotplug-debounce-time" type="u">
+            <default>500</default>
+            <range min="100" max="2000" />
+            <summary>Hotplug debounce time</summary>
+            <description>Time in milliseconds to wait before processing monitor hotplug events</description>
+        </key>
 
-    <key name="hotplug-debounce-time" type="u">
-      <default>500</default>
-      <range min="100" max="2000" />
-      <summary>Hotplug debounce time</summary>
-      <description>Time in milliseconds to wait before processing monitor hotplug events</description>
-    </key>
-
-    <!-- Performance Metrics -->
-    <key name="performance-metrics" type="a{sv}">
-      <default>{}</default>
-      <summary>Performance metrics</summary>
-      <description>Runtime performance metrics for monitoring and optimization</description>
-    </key>
-
-  </schema>
+    </schema>
 
 </schemalist>

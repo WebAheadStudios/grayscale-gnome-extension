@@ -659,7 +659,7 @@ export default class GrayscalePreferences
             subtitle: _('Automatically enable grayscale when extension starts'),
         });
         settings.bind(
-            'auto-enable-startup',
+            'auto-enable-on-startup',
             autoEnableRow,
             'active',
             Gio.SettingsBindFlags.DEFAULT
