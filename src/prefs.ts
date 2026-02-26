@@ -6,6 +6,7 @@
 import Adw from 'gi://Adw';
 import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
+import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk';
 
 import {
@@ -18,227 +19,249 @@ import type { PreferencesWindow } from './types/ui.js';
 /**
  * Keyboard Shortcut Setting Widget
  */
-export class KeyboardShortcutSetting extends Gtk.Box {
-    private _settings: Gio.Settings | null = null;
-    private _key: string | null = null;
-    private _signalId: number | null = null;
-    private _label: Gtk.Label;
-    private _button: Gtk.Button;
-    private _resetButton: Gtk.Button;
+export const KeyboardShortcutSetting = GObject.registerClass(
+    { GTypeName: 'GrayscaleKeyboardShortcutSetting' },
+    class KeyboardShortcutSetting extends Gtk.Box {
+        private _settings: Gio.Settings | null = null;
+        private _key: string | null = null;
+        private _signalId: number | null = null;
+        private _label: Gtk.Label;
+        private _button: Gtk.Button;
+        private _resetButton: Gtk.Button;
 
-    constructor(params: any = {}) {
-        super({
-            orientation: Gtk.Orientation.HORIZONTAL,
-            spacing: 12,
-            ...params,
-        });
+        constructor(params: any = {}) {
+            super({
+                orientation: Gtk.Orientation.HORIZONTAL,
+                spacing: 12,
+                ...params,
+            });
 
-        this._settings = null;
-        this._key = null;
+            this._settings = null;
+            this._key = null;
 
-        // Create label
-        this._label = new Gtk.Label({
-            hexpand: true,
-            halign: Gtk.Align.START,
-        });
-        this.append(this._label);
+            // Create label
+            this._label = new Gtk.Label({
+                hexpand: true,
+                halign: Gtk.Align.START,
+            });
+            this.append(this._label);
 
-        // Create shortcut button
-        this._button = new Gtk.Button({
-            css_classes: ['flat'],
-            halign: Gtk.Align.END,
-        });
-        this._button.connect('clicked', this._onButtonClicked.bind(this));
-        this.append(this._button);
+            // Create shortcut button
+            this._button = new Gtk.Button({
+                css_classes: ['flat'],
+                halign: Gtk.Align.END,
+            });
+            this._button.connect('clicked', this._onButtonClicked.bind(this));
+            this.append(this._button);
 
-        // Reset button
-        this._resetButton = new Gtk.Button({
-            icon_name: 'edit-clear-symbolic',
-            css_classes: ['flat'],
-            tooltip_text: _('Reset to default'),
-        });
-        this._resetButton.connect('clicked', this._onResetClicked.bind(this));
-        this.append(this._resetButton);
-    }
-
-    bind(settings: Gio.Settings, key: string, label: string): void {
-        this._settings = settings;
-        this._key = key;
-        this._label.label = label;
-
-        this._updateButton();
-
-        this._signalId = this._settings.connect(`changed::${key}`, this._updateButton.bind(this));
-    }
-
-    private _updateButton(): void {
-        if (!this._settings || !this._key) {
-            return;
+            // Reset button
+            this._resetButton = new Gtk.Button({
+                icon_name: 'edit-clear-symbolic',
+                css_classes: ['flat'],
+                tooltip_text: _('Reset to default'),
+            });
+            this._resetButton.connect('clicked', this._onResetClicked.bind(this));
+            this.append(this._resetButton);
         }
 
-        const accelerators = this._settings.get_strv(this._key);
-        if (accelerators.length > 0 && accelerators[0]) {
-            this._button.label = accelerators[0];
-        } else {
-            this._button.label = _('Disabled');
+        bind(settings: Gio.Settings, key: string, label: string): void {
+            this._settings = settings;
+            this._key = key;
+            this._label.label = label;
+
+            this._updateButton();
+
+            this._signalId = this._settings.connect(
+                `changed::${key}`,
+                this._updateButton.bind(this)
+            );
+        }
+
+        private _updateButton(): void {
+            if (!this._settings || !this._key) {
+                return;
+            }
+
+            const accelerators = this._settings.get_strv(this._key);
+            if (accelerators.length > 0 && accelerators[0]) {
+                this._button.label = accelerators[0];
+            } else {
+                this._button.label = _('Disabled');
+            }
+        }
+
+        private _onButtonClicked(): void {
+            if (!this._settings || !this._key) {
+                return;
+            }
+
+            const dialog = new ShortcutDialog(
+                this.get_root() as Gtk.Window,
+                this._settings,
+                this._key
+            );
+            dialog.present();
+        }
+
+        private _onResetClicked(): void {
+            if (!this._settings || !this._key) {
+                return;
+            }
+            this._settings.reset(this._key);
+        }
+
+        destroy(): void {
+            if (this._signalId && this._settings) {
+                this._settings.disconnect(this._signalId);
+            }
+            // Note: Gtk.Box destroy is handled by GTK
         }
     }
-
-    private _onButtonClicked(): void {
-        if (!this._settings || !this._key) {
-            return;
-        }
-
-        const dialog = new ShortcutDialog(this.get_root() as Gtk.Window, this._settings, this._key);
-        dialog.present();
-    }
-
-    private _onResetClicked(): void {
-        if (!this._settings || !this._key) {
-            return;
-        }
-        this._settings.reset(this._key);
-    }
-
-    destroy(): void {
-        if (this._signalId && this._settings) {
-            this._settings.disconnect(this._signalId);
-        }
-        // Note: Gtk.Box destroy is handled by GTK
-    }
-}
+);
+// eslint-disable-next-line no-redeclare
+export type KeyboardShortcutSetting = InstanceType<typeof KeyboardShortcutSetting>;
 
 /**
  * Shortcut Capture Dialog
  */
-export class ShortcutDialog extends Gtk.Dialog {
-    private _settings: Gio.Settings;
-    private _key: string;
-    private _shortcutLabel: Gtk.Label;
-    private _currentAccelerator: string | null = null;
+export const ShortcutDialog = GObject.registerClass(
+    { GTypeName: 'GrayscaleShortcutDialog' },
+    class ShortcutDialog extends Gtk.Dialog {
+        private _settings: Gio.Settings;
+        private _key: string;
+        private _shortcutLabel: Gtk.Label;
+        private _currentAccelerator: string | null = null;
 
-    constructor(parent: Gtk.Window, settings: Gio.Settings, key: string) {
-        super({
-            title: _('Set Keyboard Shortcut'),
-            modal: true,
-            transient_for: parent,
-        });
+        constructor(parent: Gtk.Window, settings: Gio.Settings, key: string) {
+            super({
+                title: _('Set Keyboard Shortcut'),
+                modal: true,
+                transient_for: parent,
+            });
 
-        this._settings = settings;
-        this._key = key;
+            this._settings = settings;
+            this._key = key;
 
-        this.set_default_size(400, 200);
+            this.set_default_size(400, 200);
 
-        // Add buttons
-        this.add_button(_('Cancel'), Gtk.ResponseType.CANCEL);
-        this.add_button(_('Set'), Gtk.ResponseType.OK);
-        this.set_response_sensitive(Gtk.ResponseType.OK, false);
+            // Add buttons
+            this.add_button(_('Cancel'), Gtk.ResponseType.CANCEL);
+            this.add_button(_('Set'), Gtk.ResponseType.OK);
+            this.set_response_sensitive(Gtk.ResponseType.OK, false);
 
-        // Create content
-        const content = this.get_content_area();
-        content.set_spacing(12);
-        content.set_margin_top(12);
-        content.set_margin_bottom(12);
-        content.set_margin_start(12);
-        content.set_margin_end(12);
+            // Create content
+            const content = this.get_content_area();
+            content.set_spacing(12);
+            content.set_margin_top(12);
+            content.set_margin_bottom(12);
+            content.set_margin_start(12);
+            content.set_margin_end(12);
 
-        const label = new Gtk.Label({
-            label: _('Press the desired key combination'),
-            wrap: true,
-        });
-        content.append(label);
+            const label = new Gtk.Label({
+                label: _('Press the desired key combination'),
+                wrap: true,
+            });
+            content.append(label);
 
-        this._shortcutLabel = new Gtk.Label({
-            label: _('No shortcut set'),
-            css_classes: ['accent'],
-        });
-        content.append(this._shortcutLabel);
+            this._shortcutLabel = new Gtk.Label({
+                label: _('No shortcut set'),
+                css_classes: ['accent'],
+            });
+            content.append(this._shortcutLabel);
 
-        // Set up key capture
-        const controller = new Gtk.EventControllerKey();
-        controller.connect('key-pressed', this._onKeyPressed.bind(this));
-        this.add_controller(controller);
+            // Set up key capture
+            const controller = new Gtk.EventControllerKey();
+            controller.connect('key-pressed', this._onKeyPressed.bind(this));
+            this.add_controller(controller);
 
-        this.connect('response', this._onResponse.bind(this));
+            this.connect('response', this._onResponse.bind(this));
 
-        this._currentAccelerator = null;
-    }
-
-    private _onKeyPressed(
-        controller: Gtk.EventControllerKey,
-        keyval: number,
-        keycode: number,
-        state: Gdk.ModifierType
-    ): boolean {
-        // Filter out individual modifier keys
-        if (
-            keyval === Gdk.KEY_Control_L ||
-            keyval === Gdk.KEY_Control_R ||
-            keyval === Gdk.KEY_Shift_L ||
-            keyval === Gdk.KEY_Shift_R ||
-            keyval === Gdk.KEY_Alt_L ||
-            keyval === Gdk.KEY_Alt_R ||
-            keyval === Gdk.KEY_Super_L ||
-            keyval === Gdk.KEY_Super_R
-        ) {
-            return false;
+            this._currentAccelerator = null;
         }
 
-        const accelerator = Gtk.accelerator_name(keyval, state);
-        this._currentAccelerator = accelerator;
-        this._shortcutLabel.label = accelerator;
-        this.set_response_sensitive(Gtk.ResponseType.OK, true);
+        private _onKeyPressed(
+            controller: Gtk.EventControllerKey,
+            keyval: number,
+            keycode: number,
+            state: Gdk.ModifierType
+        ): boolean {
+            // Filter out individual modifier keys
+            if (
+                keyval === Gdk.KEY_Control_L ||
+                keyval === Gdk.KEY_Control_R ||
+                keyval === Gdk.KEY_Shift_L ||
+                keyval === Gdk.KEY_Shift_R ||
+                keyval === Gdk.KEY_Alt_L ||
+                keyval === Gdk.KEY_Alt_R ||
+                keyval === Gdk.KEY_Super_L ||
+                keyval === Gdk.KEY_Super_R
+            ) {
+                return false;
+            }
 
-        return true;
-    }
+            const accelerator = Gtk.accelerator_name(keyval, state);
+            this._currentAccelerator = accelerator;
+            this._shortcutLabel.label = accelerator;
+            this.set_response_sensitive(Gtk.ResponseType.OK, true);
 
-    private _onResponse(dialog: Gtk.Dialog, response: number): void {
-        if (response === Gtk.ResponseType.OK && this._currentAccelerator) {
-            this._settings.set_strv(this._key, [this._currentAccelerator]);
+            return true;
         }
-        this.destroy();
+
+        private _onResponse(dialog: Gtk.Dialog, response: number): void {
+            if (response === Gtk.ResponseType.OK && this._currentAccelerator) {
+                this._settings.set_strv(this._key, [this._currentAccelerator]);
+            }
+            this.destroy();
+        }
     }
-}
+);
+// eslint-disable-next-line no-redeclare
+export type ShortcutDialog = InstanceType<typeof ShortcutDialog>;
 
 /**
  * Monitor Configuration Row
  */
-export class MonitorConfigRow extends Adw.ActionRow {
-    private _monitorId: number;
-    private _switch: Gtk.Switch;
+export const MonitorConfigRow = GObject.registerClass(
+    { GTypeName: 'GrayscaleMonitorConfigRow' },
+    class MonitorConfigRow extends Adw.ActionRow {
+        private _monitorId: number;
+        private _switch: Gtk.Switch;
 
-    constructor(monitorInfo: any) {
-        super({
-            title: monitorInfo.displayName || `Monitor ${monitorInfo.index + 1}`,
-            subtitle: `${monitorInfo.width}×${monitorInfo.height} ${monitorInfo.isPrimary ? '(Primary)' : ''}`,
-        });
+        constructor(monitorInfo: any) {
+            super({
+                title: monitorInfo.displayName || `Monitor ${monitorInfo.index + 1}`,
+                subtitle: `${monitorInfo.width}×${monitorInfo.height} ${monitorInfo.isPrimary ? '(Primary)' : ''}`,
+            });
 
-        this._monitorId = monitorInfo.id;
+            this._monitorId = monitorInfo.id;
 
-        // Add switch
-        this._switch = new Gtk.Switch({
-            valign: Gtk.Align.CENTER,
-        });
-        this.add_suffix(this._switch);
-        this.set_activatable_widget(this._switch);
+            // Add switch
+            this._switch = new Gtk.Switch({
+                valign: Gtk.Align.CENTER,
+            });
+            this.add_suffix(this._switch);
+            this.set_activatable_widget(this._switch);
+        }
+
+        bindToSettings(settings: Gio.Settings, key: string): void {
+            settings.bind(key, this._switch, 'active', Gio.SettingsBindFlags.DEFAULT);
+        }
+
+        get monitorId(): number {
+            return this._monitorId;
+        }
+
+        get enabled(): boolean {
+            return this._switch.active;
+        }
+
+        set enabled(value: boolean) {
+            this._switch.active = value;
+        }
     }
-
-    bindToSettings(settings: Gio.Settings, key: string): void {
-        settings.bind(key, this._switch, 'active', Gio.SettingsBindFlags.DEFAULT);
-    }
-
-    get monitorId(): number {
-        return this._monitorId;
-    }
-
-    get enabled(): boolean {
-        return this._switch.active;
-    }
-
-    set enabled(value: boolean) {
-        this._switch.active = value;
-    }
-}
+);
+// eslint-disable-next-line no-redeclare
+export type MonitorConfigRow = InstanceType<typeof MonitorConfigRow>;
 
 /**
  * Main Preferences Widget
@@ -268,29 +291,17 @@ export default class GrayscalePreferences
     }
 
     override fillPreferencesWindow(window: Adw.PreferencesWindow): Promise<void> {
-        return new Promise<void>(resolve => {
-            const settings = this.getSettings();
-
-            window.set_default_size(800, 600);
-
-            // General Settings Page
-            const generalPage = this._createGeneralPage(settings);
-            window.add(generalPage);
-
-            // UI Settings Page
-            const uiPage = this._createUIPage(settings);
-            window.add(uiPage);
-
-            // Monitor Settings Page
-            const monitorPage = this._createMonitorPage(settings);
-            window.add(monitorPage);
-
-            // Advanced Settings Page
-            const advancedPage = this._createAdvancedPage(settings);
-            window.add(advancedPage);
-
-            resolve();
-        });
+        const settings = this.getSettings();
+        window.set_default_size(800, 600);
+        const generalPage = this._createGeneralPage(settings);
+        window.add(generalPage);
+        const uiPage = this._createUIPage(settings);
+        window.add(uiPage);
+        const monitorPage = this._createMonitorPage(settings);
+        window.add(monitorPage);
+        const advancedPage = this._createAdvancedPage(settings);
+        window.add(advancedPage);
+        return Promise.resolve();
     }
 
     private _createGeneralPage(settings: Gio.Settings): Adw.PreferencesPage {
