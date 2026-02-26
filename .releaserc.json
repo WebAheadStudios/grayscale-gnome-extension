@@ -1,6 +1,6 @@
 {
-    "branches": ["main"],
-    "repositoryUrl": "https://github.com/webaheadstudios/grayscale-gnome-extension",
+    "branches": ["master"],
+    "repositoryUrl": "git@github.com:webaheadstudios/grayscale-gnome-extension.git",
     "plugins": [
         "@semantic-release/commit-analyzer",
         "@semantic-release/release-notes-generator",
@@ -19,7 +19,7 @@
         [
             "@semantic-release/exec",
             {
-                "prepareCmd": "npm run build:prod && npm run update-metadata-version ${nextRelease.version}",
+                "prepareCmd": "npm run update-metadata-version ${nextRelease.version} && npm run build:prod",
                 "publishCmd": "echo 'Extension built and packaged successfully'"
             }
         ],
