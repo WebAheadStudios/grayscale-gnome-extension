@@ -68,13 +68,13 @@ export const SignalManager = GObject.registerClass(
         GTypeName: 'GrayscaleSignalManager',
         Signals: {
             'connection-added': {
-                param_types: [GObject.TYPE_VARIANT],
+                param_types: [GObject.TYPE_JSOBJECT],
             },
             'connection-removed': {
-                param_types: [GObject.TYPE_VARIANT],
+                param_types: [GObject.TYPE_JSOBJECT],
             },
             'connection-error': {
-                param_types: [GObject.TYPE_VARIANT, GObject.TYPE_OBJECT],
+                param_types: [GObject.TYPE_JSOBJECT, GObject.TYPE_JSOBJECT],
             },
             'group-created': {
                 param_types: [GObject.TYPE_STRING],
@@ -83,7 +83,7 @@ export const SignalManager = GObject.registerClass(
                 param_types: [GObject.TYPE_STRING],
             },
             'stats-updated': {
-                param_types: [GObject.TYPE_VARIANT],
+                param_types: [GObject.TYPE_JSOBJECT],
             },
         },
     },

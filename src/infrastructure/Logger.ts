@@ -105,16 +105,16 @@ export const Logger = GObject.registerClass(
         GTypeName: 'GrayscaleLogger',
         Signals: {
             'entry-logged': {
-                param_types: [GObject.TYPE_VARIANT], // LogEntry
+                param_types: [GObject.TYPE_JSOBJECT], // LogEntry
             },
             'buffer-flushed': {
                 param_types: [GObject.TYPE_INT], // entry count
             },
             'error-logged': {
-                param_types: [GObject.TYPE_VARIANT], // LogEntry with error
+                param_types: [GObject.TYPE_JSOBJECT], // LogEntry with error
             },
             'statistics-updated': {
-                param_types: [GObject.TYPE_VARIANT], // LogStatistics
+                param_types: [GObject.TYPE_JSOBJECT], // LogStatistics
             },
         },
     },

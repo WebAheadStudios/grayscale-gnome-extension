@@ -137,19 +137,19 @@ export const PerformanceMonitor = GObject.registerClass(
         GTypeName: 'GrayscalePerformanceMonitor',
         Signals: {
             'measurement-recorded': {
-                param_types: [GObject.TYPE_VARIANT], // PerformanceMeasurement
+                param_types: [GObject.TYPE_JSOBJECT], // PerformanceMeasurement
             },
             'threshold-exceeded': {
-                param_types: [GObject.TYPE_VARIANT, GObject.TYPE_STRING], // PerformanceAlert, level
+                param_types: [GObject.TYPE_JSOBJECT, GObject.TYPE_STRING], // PerformanceAlert, level
             },
             'report-generated': {
-                param_types: [GObject.TYPE_VARIANT], // PerformanceReport
+                param_types: [GObject.TYPE_JSOBJECT], // PerformanceReport
             },
             'resource-usage-updated': {
-                param_types: [GObject.TYPE_VARIANT], // ResourceUsage
+                param_types: [GObject.TYPE_JSOBJECT], // ResourceUsage
             },
             'recommendation-available': {
-                param_types: [GObject.TYPE_STRING, GObject.TYPE_VARIANT], // recommendation, data
+                param_types: [GObject.TYPE_STRING, GObject.TYPE_JSOBJECT], // recommendation, data
             },
         },
     },

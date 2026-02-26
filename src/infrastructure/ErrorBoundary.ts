@@ -152,16 +152,16 @@ export const ErrorBoundary = GObject.registerClass(
         GTypeName: 'GrayscaleErrorBoundary',
         Signals: {
             'error-caught': {
-                param_types: [GObject.TYPE_VARIANT], // BoundaryError
+                param_types: [GObject.TYPE_JSOBJECT], // BoundaryError
             },
             'recovery-attempted': {
                 param_types: [GObject.TYPE_STRING, GObject.TYPE_STRING], // errorId, strategy
             },
             'recovery-succeeded': {
-                param_types: [GObject.TYPE_STRING, GObject.TYPE_VARIANT], // errorId, result
+                param_types: [GObject.TYPE_STRING, GObject.TYPE_JSOBJECT], // errorId, result
             },
             'recovery-failed': {
-                param_types: [GObject.TYPE_STRING, GObject.TYPE_VARIANT], // errorId, result
+                param_types: [GObject.TYPE_STRING, GObject.TYPE_JSOBJECT], // errorId, result
             },
             'circuit-breaker-opened': {
                 param_types: [GObject.TYPE_STRING], // component

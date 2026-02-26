@@ -86,19 +86,19 @@ export const ConfigCache = GObject.registerClass(
         GTypeName: 'GrayscaleConfigCache',
         Signals: {
             'setting-changed': {
-                param_types: [GObject.TYPE_STRING, GObject.TYPE_VARIANT, GObject.TYPE_VARIANT], // key, oldValue, newValue
+                param_types: [GObject.TYPE_STRING, GObject.TYPE_JSOBJECT, GObject.TYPE_JSOBJECT], // key, oldValue, newValue
             },
             'cache-flushed': {
                 param_types: [GObject.TYPE_INT], // entry count
             },
             'validation-failed': {
-                param_types: [GObject.TYPE_STRING, GObject.TYPE_VARIANT], // key, value
+                param_types: [GObject.TYPE_STRING, GObject.TYPE_JSOBJECT], // key, value
             },
             'cache-miss': {
                 param_types: [GObject.TYPE_STRING], // key
             },
             'statistics-updated': {
-                param_types: [GObject.TYPE_VARIANT], // statistics
+                param_types: [GObject.TYPE_JSOBJECT], // statistics
             },
         },
     },

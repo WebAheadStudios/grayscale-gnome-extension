@@ -85,7 +85,7 @@ export const EffectPool = GObject.registerClass(
                 param_types: [GObject.TYPE_INT], // removedCount
             },
             'statistics-updated': {
-                param_types: [GObject.TYPE_VARIANT], // stats object
+                param_types: [GObject.TYPE_JSOBJECT], // stats object
             },
         },
     },

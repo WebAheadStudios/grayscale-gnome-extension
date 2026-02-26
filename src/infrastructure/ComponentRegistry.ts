@@ -57,7 +57,7 @@ export const ComponentRegistry = GObject.registerClass(
         GTypeName: 'GrayscaleComponentRegistry',
         Signals: {
             'component-registered': {
-                param_types: [GObject.TYPE_STRING, GObject.TYPE_VARIANT],
+                param_types: [GObject.TYPE_STRING, GObject.TYPE_JSOBJECT],
             },
             'component-created': {
                 param_types: [GObject.TYPE_STRING, GObject.TYPE_OBJECT],
@@ -72,7 +72,7 @@ export const ComponentRegistry = GObject.registerClass(
                 param_types: [GObject.TYPE_STRING, GObject.TYPE_STRING],
             },
             'registry-ready': {
-                param_types: [GObject.TYPE_VARIANT], // component names array
+                param_types: [GObject.TYPE_JSOBJECT], // component names array
             },
             'registry-error': {
                 param_types: [GObject.TYPE_STRING, GObject.TYPE_OBJECT],
