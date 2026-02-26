@@ -186,6 +186,7 @@ npm run dev:install
 ```
 
 **What this does:**
+
 - ✅ Builds the extension automatically
 - ✅ Creates development symlink for easy updates
 - ✅ Compiles GSettings schemas
@@ -225,7 +226,8 @@ npm run build:dev           # Rebuild for development
 
 ### Developer Benefits 🛠️
 
-This installation system provides the same level of convenience as Material Shell:
+This installation system provides the same level of convenience as Material
+Shell:
 
 - **One-Command Setup**: `npm run dev:install` does everything you need
 - **Cross-Platform**: Works on all Linux distributions with GNOME
@@ -468,8 +470,7 @@ grayscale-gnome-extension/
 ├── .releaserc.json              # Release config
 ├── CHANGELOG.md                  # Version history
 ├── CONTRIBUTING.md               # Development guidelines
-├── LICENSE                       # GPL-3.0 license
-├── build.sh                      # Build script
+├── LICENSE                       # GPL-2.0-or-later license
 └── README.md                     # This file
 ```
 
@@ -558,15 +559,15 @@ troubleshooting procedures.
 
 ## 📄 License
 
-This project is licensed under the **GNU General Public License v3.0**
-([GPL-3.0](LICENSE)) - the same license used by GNOME Shell and other GNOME
-ecosystem projects.
+This project is licensed under the **GNU General Public License v2.0 or later**
+([GPL-2.0-or-later](LICENSE)) - the same license used by GNOME Shell and other
+GNOME ecosystem projects.
 
 **Key License Points:**
 
 - ✅ Free to use, modify, and distribute
 - ✅ Source code must remain open
-- ✅ Derivative works must use GPL-3.0
+- ✅ Derivative works must use GPL-2.0-or-later
 - ✅ Commercial usage permitted
 
 ## 🤝 Community & Support

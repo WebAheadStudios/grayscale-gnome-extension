@@ -1,6 +1,8 @@
 # Contributing to Grayscale Toggle
 
-> **Welcome contributors!** We appreciate your interest in improving the GNOME Shell Grayscale Toggle Extension. This guide will help you contribute effectively to the project.
+> **Welcome contributors!** We appreciate your interest in improving the GNOME
+> Shell Grayscale Toggle Extension. This guide will help you contribute
+> effectively to the project.
 
 ## 📋 Table of Contents
 
@@ -20,25 +22,31 @@
 ### Before You Start
 
 1. **Read the Documentation**: Familiarize yourself with the project by reading:
-   - [README.md](README.md) - Project overview and features
-   - [docs/user-guide.md](docs/user-guide.md) - User experience and functionality
-   - [docs/developer-guide.md](docs/developer-guide.md) - Technical architecture
+    - [README.md](README.md) - Project overview and features
+    - [docs/user-guide.md](docs/user-guide.md) - User experience and
+      functionality
+    - [docs/developer-guide.md](docs/developer-guide.md) - Technical
+      architecture
 
-2. **Check Existing Issues**: Browse [GitHub Issues](https://github.com/webaheadstudios/grayscale-gnome-extension/issues) to see:
-   - Current bug reports and feature requests
-   - Issues labeled `good-first-issue` for newcomers
-   - Issues labeled `help-wanted` for community contributions
+2. **Check Existing Issues**: Browse
+   [GitHub Issues](https://github.com/webaheadstudios/grayscale-gnome-extension/issues)
+   to see:
+    - Current bug reports and feature requests
+    - Issues labeled `good-first-issue` for newcomers
+    - Issues labeled `help-wanted` for community contributions
 
 3. **Join the Discussion**: Engage with the community:
-   - Comment on existing issues you're interested in
-   - Ask questions in [GitHub Discussions](https://github.com/webaheadstudios/grayscale-gnome-extension/discussions)
-   - Join `#gnome-extensions` on [irc.gnome.org](https://wiki.gnome.org/Community/GettingInTouch/IRC)
+    - Comment on existing issues you're interested in
+    - Ask questions in
+      [GitHub Discussions](https://github.com/webaheadstudios/grayscale-gnome-extension/discussions)
+    - Join `#gnome-extensions` on
+      [irc.gnome.org](https://wiki.gnome.org/Community/GettingInTouch/IRC)
 
 ### Prerequisites
 
 **Required Knowledge:**
 
-- **JavaScript ES6+**: Modern JavaScript features and patterns
+- **TypeScript**: Modern TypeScript features and patterns
 - **GNOME Shell Extensions**: Understanding of GJS and extension architecture
 - **Git**: Version control and collaborative development workflows
 - **Linux Desktop**: Experience with GNOME Shell and desktop environments
@@ -58,52 +66,52 @@
 
 1. **Install Prerequisites**:
 
-   ```bash
-   # Ubuntu/Debian
-   sudo apt install gnome-shell-extensions gjs libglib2.0-dev nodejs npm git
+    ```bash
+    # Ubuntu/Debian
+    sudo apt install gnome-shell-extensions gjs libglib2.0-dev nodejs npm git
 
-   # Fedora
-   sudo dnf install gnome-shell gjs glib2-devel nodejs npm git
+    # Fedora
+    sudo dnf install gnome-shell gjs glib2-devel nodejs npm git
 
-   # Arch Linux
-   sudo pacman -S gnome-shell gjs glib2 nodejs npm git
-   ```
+    # Arch Linux
+    sudo pacman -S gnome-shell gjs glib2 nodejs npm git
+    ```
 
 2. **Fork and Clone**:
 
-   ```bash
-   # Fork the repository on GitHub
-   # Then clone your fork
-   git clone https://github.com/YOUR_USERNAME/grayscale-gnome-extension.git
-   cd grayscale-gnome-extension
-   ```
+    ```bash
+    # Fork the repository on GitHub
+    # Then clone your fork
+    git clone https://github.com/YOUR_USERNAME/grayscale-gnome-extension.git
+    cd grayscale-gnome-extension
+    ```
 
 3. **Development Installation**:
 
-   ```bash
-   # Create symlink for development
-   mkdir -p ~/.local/share/gnome-shell/extensions
-   ln -sf "$(pwd)/src" ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com
+    ```bash
+    # Create symlink for development
+    mkdir -p ~/.local/share/gnome-shell/extensions
+    ln -sf "$(pwd)/src" ~/.local/share/gnome-shell/extensions/grayscale-toggle@webaheadstudios.com
 
-   # Install schema
-   sudo cp schemas/org.gnome.shell.extensions.grayscale-toggle.gschema.xml \
-       /usr/share/glib-2.0/schemas/
-   sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
+    # Install schema
+    sudo cp schemas/org.gnome.shell.extensions.grayscale-toggle.gschema.xml \
+        /usr/share/glib-2.0/schemas/
+    sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
 
-   # Enable extension
-   gnome-extensions enable grayscale-toggle@webaheadstudios.com
-   ```
+    # Enable extension
+    gnome-extensions enable grayscale-toggle@webaheadstudios.com
+    ```
 
 4. **Development Tools**:
 
-   ```bash
-   # Install development dependencies
-   npm install -g typescript eslint
+    ```bash
+    # Install development dependencies
+    npm install -g typescript eslint
 
-   # Set up environment variables
-   export GNOME_SHELL_DEVELOPMENT=true
-   export G_MESSAGES_DEBUG=all
-   ```
+    # Set up environment variables
+    export GNOME_SHELL_DEVELOPMENT=true
+    export G_MESSAGES_DEBUG=all
+    ```
 
 ### Development Environment
 
@@ -195,16 +203,16 @@ gnome-extensions info grayscale-toggle@webaheadstudios.com
 ### Issue-Based Development
 
 1. **Create or Claim an Issue**:
-   - For bugs: Use the bug report template
-   - For features: Use the feature request template
-   - For discussions: Use GitHub Discussions
-   - Comment on existing issues to indicate interest
+    - For bugs: Use the bug report template
+    - For features: Use the feature request template
+    - For discussions: Use GitHub Discussions
+    - Comment on existing issues to indicate interest
 
 2. **Planning Phase**:
-   - Discuss approach in issue comments
-   - Get maintainer approval for significant changes
-   - Break down complex features into smaller tasks
-   - Consider impact on existing functionality
+    - Discuss approach in issue comments
+    - Get maintainer approval for significant changes
+    - Break down complex features into smaller tasks
+    - Consider impact on existing functionality
 
 ### Git Workflow
 
@@ -341,7 +349,7 @@ Any additional information about the changes.
 
 ## 📏 Code Standards
 
-### JavaScript Style Guidelines
+### TypeScript Style Guidelines
 
 #### General Formatting
 
@@ -350,23 +358,23 @@ Any additional information about the changes.
 // Follow existing code style in the project
 
 class ExampleComponent extends GObject.Object {
-  constructor(extension) {
-    super();
-    this._extension = extension;
-    this._initialized = false;
-  }
-
-  async initialize() {
-    if (this._initialized) return;
-
-    try {
-      await this._performSetup();
-      this._initialized = true;
-    } catch (error) {
-      console.error('Initialization failed:', error);
-      throw error;
+    constructor(extension) {
+        super();
+        this._extension = extension;
+        this._initialized = false;
     }
-  }
+
+    async initialize() {
+        if (this._initialized) return;
+
+        try {
+            await this._performSetup();
+            this._initialized = true;
+        } catch (error) {
+            console.error('Initialization failed:', error);
+            throw error;
+        }
+    }
 }
 ```
 
@@ -374,7 +382,8 @@ class ExampleComponent extends GObject.Object {
 
 - **Classes**: PascalCase (`StateManager`, `EffectManager`)
 - **Methods**: camelCase (`getMonitorState`, `applyEffect`)
-- **Properties**: camelCase with underscore prefix for private (`_settings`, `_monitors`)
+- **Properties**: camelCase with underscore prefix for private (`_settings`,
+  `_monitors`)
 - **Constants**: SCREAMING_SNAKE_CASE (`DEFAULT_ANIMATION_DURATION`)
 - **Signals**: kebab-case (`'state-changed'`, `'monitor-added'`)
 - **Files**: camelCase (`stateManager.js`, `effectManager.js`)
@@ -392,12 +401,12 @@ const DEFAULT_TIMEOUT = 300;
 
 // 3. Private functions (if any)
 function _helperFunction() {
-  // Implementation
+    // Implementation
 }
 
 // 4. Main class
 export class ComponentName extends GObject.Object {
-  // Class implementation
+    // Class implementation
 }
 ```
 
@@ -472,10 +481,10 @@ async performOperation() {
 ```javascript
 // Attempt advanced feature, fall back to basic functionality
 try {
-  await this._useAdvancedAPI();
+    await this._useAdvancedAPI();
 } catch (error) {
-  console.warn('Advanced API unavailable, using fallback');
-  await this._useBasicAPI();
+    console.warn('Advanced API unavailable, using fallback');
+    await this._useBasicAPI();
 }
 ```
 
@@ -521,10 +530,10 @@ try {
 ```javascript
 // Example test structure (when test framework is added)
 describe('StateManager', () => {
-  test('should initialize with correct defaults', () => {
-    const stateManager = new StateManager(mockExtension);
-    expect(stateManager.getGlobalState()).toBe(false);
-  });
+    test('should initialize with correct defaults', () => {
+        const stateManager = new StateManager(mockExtension);
+        expect(stateManager.getGlobalState()).toBe(false);
+    });
 });
 ```
 
@@ -602,14 +611,16 @@ describe('StateManager', () => {
 
 ### Code of Conduct
 
-We follow the [GNOME Code of Conduct](https://wiki.gnome.org/Foundation/CodeOfConduct):
+We follow the
+[GNOME Code of Conduct](https://wiki.gnome.org/Foundation/CodeOfConduct):
 
 #### Core Principles
 
 - **Be Respectful**: Treat all community members with dignity and respect
 - **Be Collaborative**: Work together constructively and help others
 - **Be Considerate**: Think about how your actions affect others
-- **Be Patient**: Remember that everyone is learning and contributing voluntarily
+- **Be Patient**: Remember that everyone is learning and contributing
+  voluntarily
 
 #### Unacceptable Behavior
 
@@ -690,19 +701,17 @@ We follow the [GNOME Code of Conduct](https://wiki.gnome.org/Foundation/CodeOfCo
 ### Bug Report Template
 
 ````markdown
-**Describe the bug**
-A clear and concise description of what the bug is.
+**Describe the bug** A clear and concise description of what the bug is.
 
-**To Reproduce**
-Steps to reproduce the behavior:
+**To Reproduce** Steps to reproduce the behavior:
 
 1. Go to '...'
 2. Click on '...'
 3. Scroll down to '...'
 4. See error
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+**Expected behavior** A clear and concise description of what you expected to
+happen.
 
 **Environment:**
 
@@ -720,8 +729,7 @@ journalctl -f -o cat /usr/bin/gnome-shell | grep -i grayscale
 ```
 ````
 
-**Additional context**
-Add any other context about the problem here.
+**Additional context** Add any other context about the problem here.
 
 ````
 
@@ -751,7 +759,9 @@ Add any other context, mockups, or examples about the feature request.
 
 ## 🎉 Thank You
 
-Thank you for your interest in contributing to the Grayscale Toggle extension! Every contribution, whether it's code, documentation, testing, or community support, helps make this project better for everyone.
+Thank you for your interest in contributing to the Grayscale Toggle extension!
+Every contribution, whether it's code, documentation, testing, or community
+support, helps make this project better for everyone.
 
 ### Recognition
 
@@ -769,9 +779,11 @@ If you have any questions about contributing, don't hesitate to:
 - Comment on relevant issues
 - Join the IRC channel for real-time discussion
 
-**Project Repository**: https://github.com/webaheadstudios/grayscale-gnome-extension
-**License**: GPL-3.0 (see [LICENSE](LICENSE))
+**Project Repository**:
+https://github.com/webaheadstudios/grayscale-gnome-extension **License**:
+GPL-2.0-or-later (see [LICENSE](LICENSE))
 
 ---
 
-_Happy coding, and thank you for helping create a more focused, distraction-free computing experience!_
+_Happy coding, and thank you for helping create a more focused, distraction-free
+computing experience!_
