@@ -5,7 +5,6 @@
 
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
-import { adjustAnimationTime } from 'resource:///org/gnome/shell/misc/animationUtils.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import type {
@@ -438,8 +437,20 @@ export const EffectManager = GObject.registerClass(
         ): Promise<void> {
             if (globalState !== previousState) {
                 try {
-                    const optionsDict = options ? options.unpack() : {};
-                    const animated = optionsDict.animated ? optionsDict.animated.unpack() : true;
+                    // Use lookup_value to safely extract the 'animated' boolean from the a{sv} Variant.
+                    // options.unpack() on a{sv} returns values as GLib.Variant wrappers (not raw JS values),
+                    // so calling .unpack() again on the inner 'b' variant would still return a Variant object.
+                    let animated = true;
+                    if (options) {
+                        try {
+                            const animatedVariant = options.lookup_value('animated', null);
+                            if (animatedVariant) {
+                                animated = animatedVariant.get_boolean();
+                            }
+                        } catch {
+                            /* default to true */
+                        }
+                    }
 
                     await this.applyGlobalEffect(globalState, {
                         animated,
@@ -503,11 +514,7 @@ export const EffectManager = GObject.registerClass(
         }
 
         private async _addStageEffect(options: EffectOperationOptions = {}): Promise<boolean> {
-            const {
-                animated = true,
-                duration = this._animationSettings.duration,
-                skipEvents = false,
-            } = options;
+            const { skipEvents = false } = options;
 
             try {
                 // Check if effect already exists
@@ -516,35 +523,20 @@ export const EffectManager = GObject.registerClass(
                     return true;
                 }
 
-                // Create desaturate effect
-                const effect = new Clutter.DesaturateEffect({
-                    factor: 0.0, // Start with no desaturation
-                });
+                // ease_property is monkey-patched onto Clutter.Actor.prototype by GNOME Shell's
+                // environment.js and does NOT exist on Clutter.DesaturateEffect (which extends
+                // Clutter.ActorMeta, not Clutter.Actor). Set factor=1.0 directly at construction.
+                const effect = new Clutter.DesaturateEffect({ factor: 1.0 });
 
-                // Apply to global stage
+                // Apply to global stage using a named effect for reliable removal
                 const stage = Main.layoutManager.uiGroup;
-                stage.add_effect(effect);
+                stage.add_effect_with_name('grayscale', effect);
 
                 // Store effect reference
                 this._effects.set('stage', effect);
 
-                if (animated && duration > 0) {
-                    // Animate the desaturation factor from 0.0 to 1.0
-                    (effect as any).ease_property('factor', 1.0, {
-                        duration: adjustAnimationTime(duration),
-                        mode: this._animationSettings.easing,
-                        onComplete: () => {
-                            if (!skipEvents) {
-                                (this as any).emit('effect-applied', -1, 'stage', true);
-                            }
-                        },
-                    });
-                } else {
-                    // Apply immediately
-                    (effect as any).factor = 1.0;
-                    if (!skipEvents) {
-                        (this as any).emit('effect-applied', -1, 'stage', true);
-                    }
+                if (!skipEvents) {
+                    (this as any).emit('effect-applied', -1, 'stage', true);
                 }
 
                 console.log('[EffectManager] Stage effect added successfully');
@@ -556,43 +548,21 @@ export const EffectManager = GObject.registerClass(
         }
 
         private async _removeStageEffect(options: EffectOperationOptions = {}): Promise<boolean> {
-            const {
-                animated = true,
-                duration = this._animationSettings.duration,
-                skipEvents = false,
-            } = options;
+            const { skipEvents = false } = options;
 
             try {
-                const effect = this._effects.get('stage');
-                if (!effect) {
+                if (!this._effects.has('stage')) {
                     console.log('[EffectManager] No stage effect to remove');
                     return true;
                 }
 
+                // Remove by name — paired with add_effect_with_name('grayscale', ...)
                 const stage = Main.layoutManager.uiGroup;
+                stage.remove_effect_by_name('grayscale');
+                this._effects.delete('stage');
 
-                if (animated && duration > 0) {
-                    // Animate the desaturation factor from 1.0 to 0.0
-                    (effect as any).ease_property('factor', 0.0, {
-                        duration: adjustAnimationTime(duration),
-                        mode: this._animationSettings.easing,
-                        onComplete: () => {
-                            stage.remove_effect(effect);
-                            this._effects.delete('stage');
-
-                            if (!skipEvents) {
-                                (this as any).emit('effect-removed', -1, 'stage', true);
-                            }
-                        },
-                    });
-                } else {
-                    // Remove immediately
-                    stage.remove_effect(effect);
-                    this._effects.delete('stage');
-
-                    if (!skipEvents) {
-                        (this as any).emit('effect-removed', -1, 'stage', true);
-                    }
+                if (!skipEvents) {
+                    (this as any).emit('effect-removed', -1, 'stage', true);
                 }
 
                 console.log('[EffectManager] Stage effect removed successfully');
@@ -608,11 +578,7 @@ export const EffectManager = GObject.registerClass(
             monitorIndex: number,
             options: EffectOperationOptions = {}
         ): Promise<boolean> {
-            const {
-                animated = true,
-                duration = this._animationSettings.duration,
-                skipEvents = false,
-            } = options;
+            const { skipEvents = false } = options;
 
             try {
                 const key = monitorIndex.toString();
@@ -641,34 +607,19 @@ export const EffectManager = GObject.registerClass(
                     targetActor = Main.layoutManager.uiGroup;
                 }
 
-                // Create monitor-specific desaturate effect
-                const effect = new Clutter.DesaturateEffect({
-                    factor: 0.0,
-                });
+                // ease_property is only on Clutter.Actor, not on Clutter.DesaturateEffect.
+                // Set factor=1.0 directly at construction.
+                const effect = new Clutter.DesaturateEffect({ factor: 1.0 });
+                const effectName = `grayscale-${monitorIndex}`;
 
-                // Apply effect to target actor
-                targetActor.add_effect(effect);
+                // Apply using named effect for reliable removal
+                targetActor.add_effect_with_name(effectName, effect);
 
                 // Store effect reference
                 this._effects.set(key, effect);
 
-                if (animated && duration > 0) {
-                    // Animate the desaturation
-                    (effect as any).ease_property('factor', 1.0, {
-                        duration: adjustAnimationTime(duration),
-                        mode: this._animationSettings.easing,
-                        onComplete: () => {
-                            if (!skipEvents) {
-                                (this as any).emit('effect-applied', monitorIndex, 'monitor', true);
-                            }
-                        },
-                    });
-                } else {
-                    // Apply immediately
-                    (effect as any).factor = 1.0;
-                    if (!skipEvents) {
-                        (this as any).emit('effect-applied', monitorIndex, 'monitor', true);
-                    }
+                if (!skipEvents) {
+                    (this as any).emit('effect-applied', monitorIndex, 'monitor', true);
                 }
 
                 console.log(`[EffectManager] Monitor ${monitorIndex} effect added successfully`);
@@ -686,17 +637,12 @@ export const EffectManager = GObject.registerClass(
             monitorIndex: number,
             options: EffectOperationOptions = {}
         ): Promise<boolean> {
-            const {
-                animated = true,
-                duration = this._animationSettings.duration,
-                skipEvents = false,
-            } = options;
+            const { skipEvents = false } = options;
 
             try {
                 const key = monitorIndex.toString();
-                const effect = this._effects.get(key);
 
-                if (!effect) {
+                if (!this._effects.has(key)) {
                     console.log(`[EffectManager] No monitor ${monitorIndex} effect to remove`);
                     return true;
                 }
@@ -712,28 +658,13 @@ export const EffectManager = GObject.registerClass(
                     targetActor = Main.layoutManager.uiGroup;
                 }
 
-                if (animated && duration > 0) {
-                    // Animate the desaturation removal
-                    (effect as any).ease_property('factor', 0.0, {
-                        duration: adjustAnimationTime(duration),
-                        mode: this._animationSettings.easing,
-                        onComplete: () => {
-                            targetActor.remove_effect(effect);
-                            this._effects.delete(key);
+                // Remove by name — paired with add_effect_with_name(`grayscale-${index}`, ...)
+                const effectName = `grayscale-${monitorIndex}`;
+                targetActor.remove_effect_by_name(effectName);
+                this._effects.delete(key);
 
-                            if (!skipEvents) {
-                                (this as any).emit('effect-removed', monitorIndex, 'monitor', true);
-                            }
-                        },
-                    });
-                } else {
-                    // Remove immediately
-                    targetActor.remove_effect(effect);
-                    this._effects.delete(key);
-
-                    if (!skipEvents) {
-                        (this as any).emit('effect-removed', monitorIndex, 'monitor', true);
-                    }
+                if (!skipEvents) {
+                    (this as any).emit('effect-removed', monitorIndex, 'monitor', true);
                 }
 
                 console.log(`[EffectManager] Monitor ${monitorIndex} effect removed successfully`);
