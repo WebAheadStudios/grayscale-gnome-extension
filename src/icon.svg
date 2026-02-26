@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Monitor outline -->
+  <rect x="16" y="32" width="224" height="160" rx="12" ry="12"
+    fill="none" stroke="#333" stroke-width="16" />
+  <!-- Monitor stand neck -->
+  <rect x="96" y="192" width="64" height="20" fill="#333" />
+  <!-- Monitor stand base -->
+  <rect x="64" y="212" width="128" height="12" rx="6" fill="#333" />
+  <!-- Left half — grayscale -->
+  <rect x="28" y="44" width="100" height="136" fill="#808080" />
+  <!-- Right half — color (vivid accent) -->
+  <rect x="128" y="44" width="100" height="136" fill="#f5c518" />
+  <!-- Split divider -->
+  <line x1="128" y1="44" x2="128" y2="180" stroke="#ffffff" stroke-width="4" />
+</svg>
