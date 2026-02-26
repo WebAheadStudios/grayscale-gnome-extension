@@ -3,6 +3,7 @@
  * Provides advanced lifecycle management, dependency injection, and error handling
  */
 
+import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import type { ExtensionComponent } from '../types/extension.js';
 
@@ -302,13 +303,14 @@ export const BaseComponent = GObject.registerClass(
 
                 // Retry with exponential backoff
                 const delay = Math.min(1000 * Math.pow(2, this._state.retryCount - 1), 10000);
-                setTimeout(() => {
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
                     if (phase === ComponentPhase.Initializing) {
                         this.initialize();
                     } else if (phase === ComponentPhase.Enabled) {
                         this.enable();
                     }
-                }, delay);
+                    return GLib.SOURCE_REMOVE;
+                });
             }
         }
 
@@ -327,7 +329,10 @@ export const BaseComponent = GObject.registerClass(
             }
 
             const timeoutPromise = new Promise<never>((_, reject) => {
-                setTimeout(() => reject(new Error('Operation timeout')), this._config.timeout);
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, this._config.timeout!, () => {
+                    reject(new Error('Operation timeout'));
+                    return GLib.SOURCE_REMOVE;
+                });
             });
 
             const operationPromise = Promise.resolve(operation());

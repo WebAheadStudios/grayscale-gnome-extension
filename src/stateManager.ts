@@ -152,7 +152,7 @@ export const StateManager = GObject.registerClass(
 
             // Cancel timers
             if (this._persistenceTimer) {
-                clearTimeout(this._persistenceTimer);
+                GLib.source_remove(this._persistenceTimer);
                 this._persistenceTimer = null;
             }
 
@@ -673,13 +673,21 @@ export const StateManager = GObject.registerClass(
 
         private _schedulePersistence(): void {
             if (this._persistenceTimer) {
-                clearTimeout(this._persistenceTimer);
+                GLib.source_remove(this._persistenceTimer);
+                this._persistenceTimer = null;
             }
 
-            this._persistenceTimer = setTimeout(async () => {
-                await this.saveState();
-                this._persistenceTimer = null;
-            }, 1000); // 1 second debounce
+            this._persistenceTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+                this.saveState()
+                    .then(() => {
+                        this._persistenceTimer = null;
+                    })
+                    .catch((error: Error) => {
+                        console.error('[StateManager] Failed to persist state:', error);
+                        this._persistenceTimer = null;
+                    });
+                return GLib.SOURCE_REMOVE;
+            });
         }
 
         // Performance Monitoring

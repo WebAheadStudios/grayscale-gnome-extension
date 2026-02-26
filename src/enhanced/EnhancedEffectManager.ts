@@ -4,6 +4,7 @@
  */
 
 import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -766,8 +767,13 @@ export const EnhancedEffectManager = GObject.registerClass(
             });
         }
 
-        private async _delay(ms: number): Promise<void> {
-            return new Promise(resolve => setTimeout(resolve, ms));
+        private _delay(ms: number): Promise<void> {
+            return new Promise<void>(resolve => {
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
+                    resolve();
+                    return GLib.SOURCE_REMOVE;
+                });
+            });
         }
 
         protected _log(level: string, message: string, data?: any): void {

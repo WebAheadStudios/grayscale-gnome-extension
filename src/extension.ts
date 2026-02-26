@@ -3,6 +3,7 @@
  * Modern Extension class pattern using ES6 modules
  */
 
+import GLib from 'gi://GLib';
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -458,7 +459,7 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
                 this._log.log('Auto-enable is active, enabling grayscale...');
 
                 // Delay auto-enable to allow all components to fully initialize
-                setTimeout(() => {
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
                     (stateManager as any)
                         .setGrayscaleState(true, {
                             source: 'auto-enable',
@@ -467,7 +468,8 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
                         .catch((error: Error) => {
                             this._log.warn(`Failed to auto-enable grayscale: ${error}`);
                         });
-                }, 1000);
+                    return GLib.SOURCE_REMOVE;
+                });
             }
 
             // Load and restore previous session state
@@ -475,7 +477,7 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             if (globalEnabled && !autoEnable) {
                 this._log.log(`Restoring previous session state: ${globalEnabled}`);
 
-                setTimeout(() => {
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
                     (stateManager as any)
                         .setGrayscaleState(globalEnabled, {
                             source: 'session-restore',
@@ -484,7 +486,8 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
                         .catch((error: Error) => {
                             this._log.warn(`Failed to restore session state: ${error}`);
                         });
-                }, 500);
+                    return GLib.SOURCE_REMOVE;
+                });
             }
         }
     }

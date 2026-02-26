@@ -4,6 +4,7 @@
  */
 
 import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 
 // Pool configuration
@@ -95,7 +96,7 @@ export const EffectPool = GObject.registerClass(
         private _available: Map<string, EffectMetadata> = new Map();
         private _inUse: Map<string, EffectMetadata> = new Map();
         private _statistics: PoolStatistics;
-        private _cleanupTimeoutId: ReturnType<typeof setInterval> | null = null;
+        private _cleanupTimeoutId: number | null = null;
         private _nextId = 1;
         private _logger: any = null;
         private _destroyed = false;
@@ -373,15 +374,20 @@ export const EffectPool = GObject.registerClass(
 
         private _startCleanupTimer(): void {
             if (this._config.cleanupInterval > 0) {
-                this._cleanupTimeoutId = setInterval(() => {
-                    this.cleanup();
-                }, this._config.cleanupInterval);
+                this._cleanupTimeoutId = GLib.timeout_add(
+                    GLib.PRIORITY_DEFAULT,
+                    this._config.cleanupInterval,
+                    () => {
+                        this.cleanup();
+                        return GLib.SOURCE_CONTINUE;
+                    }
+                );
             }
         }
 
         private _stopCleanupTimer(): void {
             if (this._cleanupTimeoutId) {
-                clearInterval(this._cleanupTimeoutId);
+                GLib.source_remove(this._cleanupTimeoutId);
                 this._cleanupTimeoutId = null;
             }
         }

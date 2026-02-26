@@ -553,7 +553,8 @@ class HotplugEventManager {
         this._signalConnections = [];
 
         if (this._debounceTimer) {
-            clearTimeout(this._debounceTimer);
+            GLib.source_remove(this._debounceTimer);
+            this._debounceTimer = null;
         }
 
         this._pendingOperations.clear();
@@ -586,13 +587,17 @@ class HotplugEventManager {
 
     private _debounceProcessing(): void {
         if (this._debounceTimer) {
-            clearTimeout(this._debounceTimer);
+            GLib.source_remove(this._debounceTimer);
+            this._debounceTimer = null;
         }
 
-        this._debounceTimer = setTimeout(() => {
-            this._processHotplugEvents();
+        this._debounceTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+            this._processHotplugEvents().catch((error: Error) => {
+                console.error('[HotplugEventManager] Error in debounced processing:', error);
+            });
             this._debounceTimer = null;
-        }, 500); // 500ms debounce
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     private async _processHotplugEvents(): Promise<void> {
@@ -655,8 +660,8 @@ class HotplugEventManager {
 
         // Clean up any effects for this monitor
         const operation = this._pendingOperations.get(`remove-${monitor.index}`);
-        if (operation) {
-            clearTimeout(operation.timeout);
+        if (operation && operation.timeout) {
+            GLib.source_remove(operation.timeout);
         }
 
         // Remove effects immediately
