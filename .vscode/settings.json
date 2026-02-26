@@ -1,74 +1,72 @@
 {
-  "editor.tabSize": 2,
-  "editor.insertSpaces": true,
-  "editor.detectIndentation": false,
-  "editor.formatOnSave": true,
-  "editor.formatOnPaste": true,
-  "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit",
-    "source.organizeImports": "explicit"
-  },
-  "editor.rulers": [100],
-  "files.eol": "\n",
-  "files.trimTrailingWhitespace": true,
-  "files.insertFinalNewline": true,
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false,
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit",
+        "source.organizeImports": "explicit"
+    },
+    "editor.rulers": [100],
+    "files.eol": "\n",
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
 
-  "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true
-  },
-  "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true
-  },
-  "[json]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[jsonc]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[markdown]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.wordWrap": "on"
-  },
+    "[typescript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true
+    },
+    "[javascript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true
+    },
+    "[json]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[jsonc]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[markdown]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.wordWrap": "on"
+    },
 
-  "typescript.preferences.quoteStyle": "single",
-  "typescript.preferences.includePackageJsonAutoImports": "auto",
-  "typescript.updateImportsOnFileMove.enabled": "always",
-  "typescript.suggest.autoImports": true,
-  "typescript.format.enable": true,
-  "typescript.validate.enable": true,
+    "typescript.preferences.quoteStyle": "single",
+    "typescript.preferences.includePackageJsonAutoImports": "auto",
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    "typescript.suggest.autoImports": true,
+    "typescript.format.enable": true,
+    "typescript.validate.enable": true,
 
-  "eslint.validate": [
-    "javascript",
-    "typescript"
-  ],
-  "eslint.format.enable": true,
-  "eslint.codeAction.showDocumentation": {
-    "enable": true
-  },
+    "eslint.validate": ["javascript", "typescript"],
+    "eslint.format.enable": true,
+    "eslint.codeAction.showDocumentation": {
+        "enable": true
+    },
 
-  "prettier.singleQuote": true,
-  "prettier.printWidth": 100,
-  "prettier.semi": true,
-  "prettier.trailingComma": "es5",
+    "prettier.singleQuote": true,
+    "prettier.printWidth": 100,
+    "prettier.semi": true,
+    "prettier.trailingComma": "es5",
 
-  "search.exclude": {
-    "dist": true,
-    "build": true,
-    "coverage": true,
-    "node_modules": true,
-    "*.log": true
-  },
+    "search.exclude": {
+        "dist": true,
+        "build": true,
+        "coverage": true,
+        "node_modules": true,
+        "*.log": true
+    },
 
-  "files.exclude": {
-    "dist": true,
-    "build": true,
-    "coverage": true
-  },
+    "files.exclude": {
+        "dist": true,
+        "build": true,
+        "coverage": true,
+        "node_modules": true
+    },
 
-  "git.ignoreLimitWarning": true,
-  "emmet.includeLanguages": {
-    "typescript": "javascript"
-  }
+    "git.ignoreLimitWarning": true,
+    "emmet.includeLanguages": {
+        "typescript": "javascript"
+    }
 }
