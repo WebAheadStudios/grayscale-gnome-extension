@@ -55,6 +55,7 @@ export const GrayscalePanelButton = GObject.registerClass(
         private _monitorSubMenu: any; // PopupSubMenuMenuItem
         private _resetItem: any; // PopupMenuItem
         private _preferencesItem: any; // PopupMenuItem
+        private _disableExtensionItem: any; // PopupMenuItem
 
         constructor(extension: Extension, position: string) {
             super(0.0, _('Grayscale Toggle'), false);
@@ -169,6 +170,13 @@ export const GrayscalePanelButton = GObject.registerClass(
             this._preferencesItem = new PopupMenuItem(_('Preferences'));
             this._preferencesItem.connect('activate', this._onOpenPreferences.bind(this));
             (this.menu as any).addMenuItem(this._preferencesItem);
+
+            (this.menu as any).addMenuItem(new PopupSeparatorMenuItem());
+
+            // Disable Extension
+            this._disableExtensionItem = new PopupMenuItem(_('Disable Extension'));
+            this._disableExtensionItem.connect('activate', this._onDisableExtension.bind(this));
+            (this.menu as any).addMenuItem(this._disableExtensionItem);
         }
 
         /**
@@ -353,6 +361,19 @@ export const GrayscalePanelButton = GObject.registerClass(
                 this._showNotification(_('All grayscale effects have been disabled'));
             } catch (error) {
                 console.error('[Grayscale] Error resetting all states:', error);
+            }
+        }
+
+        /**
+         * Handle disable extension action
+         */
+        private _onDisableExtension(): void {
+            try {
+                const uuid = this._extension?.uuid ?? 'grayscale-toggle@webaheadstudios.com';
+                (Main.extensionManager as any).disableExtension(uuid);
+            } catch (error) {
+                console.error('[Grayscale] Error disabling extension:', error);
+                this._showNotification(_('Could not disable extension'));
             }
         }
 
