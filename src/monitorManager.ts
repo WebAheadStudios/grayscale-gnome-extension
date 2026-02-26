@@ -377,7 +377,11 @@ class AdvancedMonitorDetection implements MonitorDetection {
                 isPrimary: i === layoutManager.primaryIndex,
                 scale: (monitor as any).geometry_scale || 1.0,
                 name: this._getConnectorName(i),
-                actor: monitor,
+                // layoutManager.monitors[i] is a plain Monitor geometry struct
+                // (x, y, width, height, index) — NOT a Clutter.Actor.
+                // Setting actor here would cause _addMonitorEffect to try
+                // add_effect_with_name() on a non-Actor and fail silently.
+                actor: undefined,
                 manufacturer: undefined,
                 model: undefined,
                 serial: undefined,

@@ -596,9 +596,12 @@ export const EffectManager = GObject.registerClass(
                     // Phase 2: True per-monitor effects
                     targetActor = this._monitorManager.getMonitorActor(monitorIndex);
 
-                    if (!targetActor) {
+                    // Guard against non-Clutter.Actor values (e.g. plain Meta.Monitor
+                    // geometry structs that lack add_effect_with_name). Treat those as
+                    // absent and fall back to uiGroup instead of crashing silently.
+                    if (!targetActor || typeof targetActor.add_effect_with_name !== 'function') {
                         console.warn(
-                            `[EffectManager] No actor found for monitor ${monitorIndex}, falling back to stage`
+                            `[EffectManager] No valid Clutter actor for monitor ${monitorIndex}, falling back to stage`
                         );
                         targetActor = Main.layoutManager.uiGroup;
                     }
@@ -654,7 +657,8 @@ export const EffectManager = GObject.registerClass(
                     targetActor = this._monitorManager.getMonitorActor(monitorIndex);
                 }
 
-                if (!targetActor) {
+                // Same guard as _addMonitorEffect: reject non-Clutter.Actor values.
+                if (!targetActor || typeof targetActor.remove_effect_by_name !== 'function') {
                     targetActor = Main.layoutManager.uiGroup;
                 }
 

@@ -353,11 +353,15 @@ export const StateManager = GObject.registerClass(
                 }
 
                 if (!options.skipEvents) {
+                    // Emit previousState.isActive (boolean) not the full EffectState object.
+                    // The signal declares TYPE_BOOLEAN for this param; passing the object
+                    // causes GJS to coerce it to `true`, breaking the enabled !== previousState
+                    // guard in EffectManager._handleMonitorStateChange.
                     (this as any).emit(
                         'monitor-state-changed',
                         monitorIndex,
                         enabled,
-                        previousState
+                        previousState.isActive
                     );
                 }
 
