@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 Luiz Lopes <luiz@webaheadstudios.com>
+
 /**
  * Main Extension Entry Point for GNOME Shell Grayscale Toggle Extension
  * Modern Extension class pattern using ES6 modules

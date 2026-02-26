@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 Luiz Lopes <luiz@webaheadstudios.com>
+
 /**
  * State Manager for GNOME Shell Grayscale Toggle Extension
  * Central state coordination, settings persistence, and event publishing

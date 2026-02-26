@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 Luiz Lopes <luiz@webaheadstudios.com>
+
 /**
  * UI Controller for GNOME Shell Grayscale Toggle Extension
  * Manages all UI components including keyboard shortcuts, Quick Settings, and panel indicator

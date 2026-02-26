@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright (C) 2026 Luiz Lopes <luiz@webaheadstudios.com>
+
 /**
  * Panel Indicator Integration
  * Provides panel button with dynamic icon and popup menu
