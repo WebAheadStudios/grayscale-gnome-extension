@@ -315,19 +315,20 @@ targets GNOME 45/46, so that API does **NOT** exist at runtime and calling it
 unconditionally will crash the extension on load with:
 `TypeError: this.getLogger is not a function`
 
-**Correct pattern** — use `src/infrastructure/Logger.ts` directly:
+**Correct pattern** — use `src/infrastructure/Logger.ts` directly, and
+instantiate it in `enable()` (NOT in `constructor()` — see Constructor rule):
 
 ```typescript
 import { Logger, LogCategory, LogLevel } from './infrastructure/Logger.js';
 
-// In class fields:
+// In class fields (no-op default ensures safe calls before enable()):
 private _logger: InstanceType<typeof Logger> | null = null;
-private _log!: ExtensionLogger;   // ExtensionLogger = { log, warn, error }
+private _log: ExtensionLogger = { log: () => {}, warn: () => {}, error: () => {} };
 
-// In constructor (after super()):
+// In enable() — FIRST thing before any other code:
 this._logger = new Logger({ level: LogLevel.Info, enableConsole: true });
 const _componentLog = this._logger.createComponentLogger(
-    metadata.uuid ?? 'grayscale-toggle@webaheadstudios.com',
+    this.metadata.uuid ?? 'grayscale-toggle@webaheadstudios.com',
     LogCategory.System
 );
 this._log = {
@@ -336,9 +337,10 @@ this._log = {
     error: (msg: string) => _componentLog.error(msg),
 };
 
-// In disable() — flush & destroy the logger last:
+// In disable() — flush & destroy the logger last, then reset to no-op:
 this._logger?.destroy();
 this._logger = null;
+this._log = { log: () => {}, warn: () => {}, error: () => {} };
 ```
 
 Console output format:
@@ -346,3 +348,119 @@ Console output format:
 
 Only use this pattern in `src/extension.ts`; component files use their own
 `ComponentLogger` obtained from the same `Logger` instance via their base class.
+
+---
+
+## Constructor Must NOT Create GObject Instances (review guideline R1)
+
+The `constructor()` of the `Extension` class **MUST** only call
+`super(metadata)` and initialize fields to `null` / safe defaults. **Never**
+instantiate GObject subclasses, connect signals, or add GLib sources in the
+constructor.
+
+```typescript
+// ✅ Correct — GObject creation deferred to enable()
+constructor(metadata: GrayscaleExtensionMetadata) {
+    super(metadata);
+    this._logger = null; // Logger (GObject) created in enable()
+    this._components = new Map();
+    this._initialized = false;
+}
+
+// ❌ Wrong — Logger is a GObject subclass; constructing it here violates R1
+constructor(metadata: GrayscaleExtensionMetadata) {
+    super(metadata);
+    this._logger = new Logger({ ... }); // crash risk during shell startup
+}
+```
+
+This rule exists because GObject construction during the shell's loading phase
+can trigger crashes before the extension runtime is fully ready.
+
+---
+
+## GLib Timer Cleanup — Store Every Source ID (review guideline R4)
+
+Every `GLib.timeout_add()` call **MUST** store the returned source ID in a class
+field. In `disable()`, call `GLib.source_remove(id)` for **all** stored IDs —
+even for one-shot timers, because the timer may not have fired yet when the
+extension is disabled.
+
+```typescript
+// In class fields:
+private _autoEnableTimerId: number | null = null;
+
+// When creating:
+this._autoEnableTimerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+    this._autoEnableTimerId = null; // clear after fire
+    // … work …
+    return GLib.SOURCE_REMOVE;
+});
+
+// In disable() — BEFORE destroying components:
+if (this._autoEnableTimerId) {
+    GLib.source_remove(this._autoEnableTimerId);
+    this._autoEnableTimerId = null;
+}
+```
+
+A timer that fires **after** `disable()` will find a partially torn-down
+extension and crash the shell. No exception.
+
+---
+
+## No Excessive Logging (review guideline R9)
+
+Extensions submitted to extensions.gnome.org **MUST NOT** print excessive
+messages to the system log. All informational `console.log()` calls must be
+gated behind the `debug-logging` GSettings key. Only `console.error()` for
+genuine errors may be unconditional.
+
+Pattern for component classes:
+
+```typescript
+private _debugLog(message: string): void {
+    try {
+        if (this._settings?.get_boolean('debug-logging')) {
+            console.log(message);
+        }
+    } catch {
+        /* ignore — settings not yet available */
+    }
+}
+```
+
+Use `this._debugLog(msg)` for lifecycle messages, state changes, and
+initialization progress. Keep `console.error(...)` for actual error paths.
+
+---
+
+## Signal Connections in ALL Component Files
+
+ALL signal connections in ALL component files (not just `extension.ts`) must be
+tracked and disconnected in `destroy()`. The pattern is the same as in
+`extension.ts`:
+
+```typescript
+// In class fields:
+private _signalConnectionIds: { object: any; id: number }[] = [];
+
+// When connecting:
+const id = source.connect('signal-name', handler);
+this._signalConnectionIds.push({ object: source, id });
+
+// In destroy():
+for (const { object, id } of this._signalConnectionIds) {
+    try { object.disconnect(id); } catch { /* ignore */ }
+}
+this._signalConnectionIds = [];
+```
+
+Files that implement this pattern (verified 2026-02):
+
+- `src/extension.ts` → `_signalConnections[]` + `_disconnectSignals()`
+- `src/uiController.ts` → `_signalConnectionIds[]` + cleaned in `destroy()`
+- `src/panelIndicator.ts` → `GrayscalePanelButton._signalIds[]` + `destroy()`
+
+Component files that connect state-manager or settings signals **must** follow
+this pattern; omitting it causes memory leaks and crashes on re-enable.

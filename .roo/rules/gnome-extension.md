@@ -187,3 +187,104 @@ Schema keys are **kebab-case** and are the source of truth:
 
 TypeScript interfaces in `src/types/settings.ts` use camelCase internally. Do
 NOT assume direct key-name compatibility between the two.
+
+---
+
+## Constructor Must NOT Create GObject Instances (review guideline R1)
+
+The `constructor()` in an Extension class **MUST** only call `super(metadata)`
+and initialize fields to `null` / safe defaults. Never instantiate GObject
+subclasses (e.g. `Logger`, `SettingsController`), connect signals, or add GLib
+sources in the constructor.
+
+```typescript
+// ✅ Correct — Logger (GObject) created in enable()
+constructor(metadata: GrayscaleExtensionMetadata) {
+    super(metadata);
+    this._logger = null;
+    this._log = { log: () => {}, warn: () => {}, error: () => {} };
+    this._initialized = false;
+}
+
+// ❌ Wrong — Logger is a GObject subclass; constructing it here violates R1
+constructor(metadata: GrayscaleExtensionMetadata) {
+    super(metadata);
+    this._logger = new Logger({ ... }); // crash risk during shell startup
+}
+```
+
+---
+
+## GLib Timer Cleanup — Store Every Source ID (review guideline R4)
+
+Every `GLib.timeout_add()` call **MUST** store the returned source ID in a class
+field. In `disable()`, call `GLib.source_remove(id)` before tearing down
+components — even for one-shot timers that may not have fired yet.
+
+```typescript
+// ✅ Correct
+this._autoEnableTimerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+    this._autoEnableTimerId = null;
+    // … work …
+    return GLib.SOURCE_REMOVE;
+});
+
+// In disable():
+if (this._autoEnableTimerId) {
+    GLib.source_remove(this._autoEnableTimerId);
+    this._autoEnableTimerId = null;
+}
+
+// ❌ Wrong — timer fires after disable() and crashes the shell
+GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => { ... return GLib.SOURCE_REMOVE; });
+```
+
+---
+
+## No Excessive Logging (review guideline R9)
+
+Extensions submitted to extensions.gnome.org **MUST NOT** print excessively to
+the system journal. Gate all informational `console.log()` calls behind the
+`debug-logging` GSettings key. Only genuine `console.error()` calls are
+unconditional.
+
+```typescript
+private _debugLog(message: string): void {
+    try {
+        if (this._settings?.get_boolean('debug-logging')) {
+            console.log(message);
+        }
+    } catch {
+        /* ignore — settings not yet available */
+    }
+}
+```
+
+Replace every lifecycle/state `console.log(...)` with `this._debugLog(...)`.
+Keep `console.error(...)` for genuine error paths only.
+
+---
+
+## Signal Connections in ALL Component Files (review guideline R3)
+
+ALL signal connections in ALL component files must be tracked and disconnected
+in `destroy()`. Untracked connections survive the disable cycle and cause memory
+leaks or crashes on re-enable.
+
+```typescript
+// In class fields:
+private _signalConnectionIds: { object: any; id: number }[] = [];
+
+// When connecting:
+const id = source.connect('signal-name', handler);
+this._signalConnectionIds.push({ object: source, id });
+
+// In destroy():
+for (const { object, id } of this._signalConnectionIds) {
+    try { object.disconnect(id); } catch { /* ignore */ }
+}
+this._signalConnectionIds = [];
+```
+
+This applies to settings `connect()`, stateManager `connect()`,
+settingsController `connect()`, and any other GObject signal.
