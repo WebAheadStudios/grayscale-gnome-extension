@@ -73,7 +73,7 @@ npm install -g @girs/gjs
 
 ```bash
 # Clone the repository
-git clone https://github.com/luiz/grayscale-gnome-extension.git
+git clone https://github.com/webaheadstudios/grayscale-gnome-extension.git
 cd grayscale-gnome-extension
 
 # Set up development environment

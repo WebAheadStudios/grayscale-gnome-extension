@@ -1003,7 +1003,8 @@ ps aux | grep grayscale
 - **[User Guide](user-guide.md)**: Complete usage instructions
 - **[Developer Guide](developer-guide.md)**: Technical documentation
 - **[Main README](../README.md)**: Project overview
-- **GitHub Issues**: https://github.com/luiz/grayscale-gnome-extension/issues
+- **GitHub Issues**:
+  https://github.com/webaheadstudios/grayscale-gnome-extension/issues
 
 ### Community Support
 
