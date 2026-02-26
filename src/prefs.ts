@@ -324,6 +324,16 @@ export default class GrayscalePreferences
         settings.bind('global-enabled', globalRow, 'active', Gio.SettingsBindFlags.DEFAULT);
         mainGroup.add(globalRow);
 
+        // Grayscale effect active state
+        const grayscaleRow = new Adw.SwitchRow({
+            title: _('Grayscale Effect Active'),
+            subtitle: _(
+                'Current state of the grayscale effect (also toggled by the keybinding and panel indicator)'
+            ),
+        });
+        settings.bind('grayscale-enabled', grayscaleRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        mainGroup.add(grayscaleRow);
+
         // Keyboard shortcut group
         const shortcutGroup = new Adw.PreferencesGroup({
             title: _('Keyboard Shortcuts'),
@@ -339,7 +349,6 @@ export default class GrayscalePreferences
         const shortcutWidget = new KeyboardShortcutSetting();
         shortcutWidget.bind(settings, 'toggle-keybinding', '');
         shortcutRow.add_suffix(shortcutWidget);
-        shortcutRow.set_activatable_widget(shortcutWidget);
         shortcutGroup.add(shortcutRow);
 
         return page;
@@ -454,13 +463,61 @@ export default class GrayscalePreferences
         });
         page.add(monitorGroup);
 
-        // Note: In a real implementation, you would need to get monitor information
-        // from the extension's monitor manager. For now, we'll create a placeholder.
-        const placeholderRow = new Adw.ActionRow({
-            title: _('Monitor Detection'),
-            subtitle: _('Monitor configuration will be available when the extension is running'),
+        // Primary monitor only
+        const primaryOnlyRow = new Adw.SwitchRow({
+            title: _('Primary Monitor Only'),
+            subtitle: _('Apply effects only to the primary monitor'),
         });
-        monitorGroup.add(placeholderRow);
+        settings.bind(
+            'primary-monitor-only',
+            primaryOnlyRow,
+            'active',
+            Gio.SettingsBindFlags.DEFAULT
+        );
+        monitorGroup.add(primaryOnlyRow);
+
+        // Auto-sync monitors
+        const autoSyncRow = new Adw.SwitchRow({
+            title: _('Auto-sync Monitors'),
+            subtitle: _(
+                'Automatically sync grayscale state when monitors are connected or disconnected'
+            ),
+        });
+        settings.bind('auto-sync-monitors', autoSyncRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+        monitorGroup.add(autoSyncRow);
+
+        // Monitor detection sensitivity
+        const sensitivityRow = new Adw.ComboRow({
+            title: _('Monitor Detection Sensitivity'),
+            subtitle: _('Sensitivity level for monitor hotplug detection'),
+            model: new Gtk.StringList(),
+        });
+        (sensitivityRow.model as Gtk.StringList).append(_('Low'));
+        (sensitivityRow.model as Gtk.StringList).append(_('Medium'));
+        (sensitivityRow.model as Gtk.StringList).append(_('High'));
+        const sensitivityValue = settings.get_string('monitor-detection-sensitivity');
+        sensitivityRow.selected = ['low', 'medium', 'high'].indexOf(sensitivityValue);
+        sensitivityRow.connect('notify::selected', () => {
+            const levels = ['low', 'medium', 'high'];
+            settings.set_string('monitor-detection-sensitivity', levels[sensitivityRow.selected]);
+        });
+        monitorGroup.add(sensitivityRow);
+
+        // Hotplug debounce time
+        const debounceRow = new Adw.SpinRow({
+            title: _('Hotplug Debounce Time'),
+            subtitle: _('Delay before processing monitor connect/disconnect events (milliseconds)'),
+        });
+        debounceRow.set_adjustment(
+            new Gtk.Adjustment({
+                lower: 100,
+                upper: 2000,
+                step_increment: 50,
+                page_increment: 200,
+            })
+        );
+        settings.bind('hotplug-debounce-time', debounceRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+        monitorGroup.add(debounceRow);
 
         // Per-monitor mode group
         const perMonitorGroup = new Adw.PreferencesGroup({
@@ -488,6 +545,19 @@ export default class GrayscalePreferences
             Gio.SettingsBindFlags.DEFAULT
         );
         perMonitorGroup.add(autoRestoreRow);
+
+        // Preserve monitor states across layout changes
+        const preserveStatesRow = new Adw.SwitchRow({
+            title: _('Preserve Monitor States'),
+            subtitle: _('Keep individual monitor states when monitor layout changes'),
+        });
+        settings.bind(
+            'preserve-monitor-states',
+            preserveStatesRow,
+            'active',
+            Gio.SettingsBindFlags.DEFAULT
+        );
+        perMonitorGroup.add(preserveStatesRow);
 
         return page;
     }
@@ -536,6 +606,38 @@ export default class GrayscalePreferences
         );
         settings.bind('grayscale-intensity', intensityRow, 'value', Gio.SettingsBindFlags.DEFAULT);
         effectGroup.add(intensityRow);
+
+        // Effect quality
+        const qualityRow = new Adw.ComboRow({
+            title: _('Effect Quality'),
+            subtitle: _(
+                'Quality level of the grayscale effect (higher quality may affect performance)'
+            ),
+            model: new Gtk.StringList(),
+        });
+        (qualityRow.model as Gtk.StringList).append(_('Low'));
+        (qualityRow.model as Gtk.StringList).append(_('Medium'));
+        (qualityRow.model as Gtk.StringList).append(_('High'));
+        const qualityValue = settings.get_string('effect-quality');
+        qualityRow.selected = ['low', 'medium', 'high'].indexOf(qualityValue);
+        qualityRow.connect('notify::selected', () => {
+            const qualities = ['low', 'medium', 'high'];
+            settings.set_string('effect-quality', qualities[qualityRow.selected]);
+        });
+        effectGroup.add(qualityRow);
+
+        // Performance mode
+        const performanceModeRow = new Adw.SwitchRow({
+            title: _('Performance Mode'),
+            subtitle: _('Enable optimizations for lower-end hardware (reduces effect quality)'),
+        });
+        settings.bind(
+            'performance-mode',
+            performanceModeRow,
+            'active',
+            Gio.SettingsBindFlags.DEFAULT
+        );
+        effectGroup.add(performanceModeRow);
 
         // Startup behavior group
         const startupGroup = new Adw.PreferencesGroup({
