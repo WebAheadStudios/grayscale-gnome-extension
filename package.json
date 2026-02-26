@@ -19,7 +19,7 @@
         "test:watch": "jest --watch",
         "test:coverage": "jest --coverage",
         "test:ci": "jest --ci --coverage --watchAll=false",
-        "copy-files": "mkdir -p dist && cp -r build/* dist/ && cp src/metadata.json dist/",
+        "copy-files": "mkdir -p dist && cp -r build/* dist/ && cp src/metadata.json dist/ && cp src/icon.svg dist/",
         "compile-schemas": "mkdir -p dist/schemas && cp schemas/*.gschema.xml dist/schemas/ && (glib-compile-schemas dist/schemas 2>/dev/null || echo 'Schema compilation will occur during installation')",
         "package": "cd dist && zip -r ../dist/grayscale-toggle@webaheadstudios.com.zip . -x '*.DS_Store' '*/.*'",
         "install:extension": "node scripts/install.js",

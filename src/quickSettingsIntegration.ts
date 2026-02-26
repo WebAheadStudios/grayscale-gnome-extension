@@ -340,6 +340,18 @@ export class QuickSettingsIntegration implements ExtensionComponent {
         this._enabled = false;
     }
 
+    // Gate informational output behind debug-logging schema key (review guideline R9)
+    private _debugLog(message: string): void {
+        try {
+            const sc = this._extension?.getComponent('SettingsController');
+            if (sc?.getSetting('debug-logging')) {
+                console.log(message);
+            }
+        } catch {
+            /* ignore — SettingsController not yet available */
+        }
+    }
+
     /**
      * Enable Quick Settings integration
      */
@@ -367,7 +379,7 @@ export class QuickSettingsIntegration implements ExtensionComponent {
                 panel._indicators.add_child(this._indicator);
                 panel._addItems(this._indicator.quickSettingsItems);
 
-                console.log('[Grayscale] Quick Settings integration enabled');
+                this._debugLog('[Grayscale] Quick Settings integration enabled');
                 this._enabled = true;
             } else {
                 console.warn('[Grayscale] Could not access Quick Settings panel');
@@ -399,7 +411,7 @@ export class QuickSettingsIntegration implements ExtensionComponent {
                 this._indicator = null;
             }
 
-            console.log('[Grayscale] Quick Settings integration disabled');
+            this._debugLog('[Grayscale] Quick Settings integration disabled');
             this._enabled = false;
         } catch (error) {
             console.error('[Grayscale] Error disabling Quick Settings integration:', error);

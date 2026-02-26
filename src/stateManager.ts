@@ -74,6 +74,7 @@ export const StateManager = GObject.registerClass(
         private _stateValidators: Map<string, ValidationRule>;
         private _performanceMetrics: PerformanceMetrics;
         private _initialized: boolean;
+        private _settingsControllerSignalId: number | null = null;
 
         constructor(extension: Extension) {
             super();
@@ -91,6 +92,17 @@ export const StateManager = GObject.registerClass(
             this._initialized = false;
 
             this._setupValidators();
+        }
+
+        // Gate informational output behind debug-logging schema key (review guideline R9)
+        private _debugLog(message: string): void {
+            try {
+                if (this._settingsController?.getSetting('debug-logging')) {
+                    console.log(message);
+                }
+            } catch {
+                /* ignore — settingsController not yet wired */
+            }
         }
 
         // Initialization
@@ -118,14 +130,14 @@ export const StateManager = GObject.registerClass(
                 await this.loadState();
 
                 // Connect to settings changes
-                this._settingsController.connect(
+                this._settingsControllerSignalId = this._settingsController.connect(
                     'setting-changed',
                     (controller: any, key: string, variant: GLib.Variant) =>
                         this._handleSettingChange(key, variant)
                 );
 
                 this._initialized = true;
-                console.log('[StateManager] Initialized successfully');
+                this._debugLog('[StateManager] Initialized successfully');
                 return true;
             } catch (error) {
                 console.error('[StateManager] Initialization failed:', error);
@@ -159,6 +171,12 @@ export const StateManager = GObject.registerClass(
                 this._persistenceTimer = null;
             }
 
+            // Disconnect settings signal before nulling the reference (review guideline R3)
+            if (this._settingsControllerSignalId) {
+                this._settingsController?.disconnect(this._settingsControllerSignalId);
+                this._settingsControllerSignalId = null;
+            }
+
             // Clear data
             this._settingsController = null;
             this._monitorManager = null;
@@ -166,7 +184,7 @@ export const StateManager = GObject.registerClass(
             this._transactionLog = [];
             this._initialized = false;
 
-            console.log('[StateManager] Destroyed successfully');
+            this._debugLog('[StateManager] Destroyed successfully');
         }
 
         // IStateManager implementation
@@ -285,7 +303,7 @@ export const StateManager = GObject.registerClass(
                     const duration = GLib.get_monotonic_time() / 1000 - startTime;
                     this._recordPerformanceMetric('globalToggle', duration);
 
-                    console.log(
+                    this._debugLog(
                         `[StateManager] Global state changed: ${enabled} (source: ${source})`
                     );
                     return true;
@@ -368,7 +386,7 @@ export const StateManager = GObject.registerClass(
                     );
                 }
 
-                console.log(`[StateManager] Monitor ${monitorIndex} state changed: ${enabled}`);
+                this._debugLog(`[StateManager] Monitor ${monitorIndex} state changed: ${enabled}`);
                 return true;
             } catch (error) {
                 this._rollbackTransaction(transaction);
@@ -414,7 +432,7 @@ export const StateManager = GObject.registerClass(
                 }
             }
 
-            console.log(
+            this._debugLog(
                 `[StateManager] Initialized monitor ${monitorIndex} state: ${initialState}`
             );
             return monitorState;
@@ -443,13 +461,13 @@ export const StateManager = GObject.registerClass(
             this._state.effects.forEach((effect, index) => {
                 if (!activeIndices.has(index)) {
                     // Monitor no longer active, but preserve state for when it returns
-                    console.log(
+                    this._debugLog(
                         `[StateManager] Monitor ${index} is no longer active, preserving state`
                     );
                 }
             });
 
-            console.log(
+            this._debugLog(
                 `[StateManager] Synced states for ${activeMonitors.length} active monitors`
             );
         }
@@ -523,7 +541,7 @@ export const StateManager = GObject.registerClass(
                     await this._settingsController.setSetting('monitor-states', monitorStates);
                 }
 
-                console.log('[StateManager] State saved successfully');
+                this._debugLog('[StateManager] State saved successfully');
                 return true;
             } catch (error) {
                 console.error('[StateManager] State save failed:', error);
@@ -554,7 +572,7 @@ export const StateManager = GObject.registerClass(
                 // Load all settings into cache
                 await this._loadSettingsCache();
 
-                console.log('[StateManager] State loaded successfully');
+                this._debugLog('[StateManager] State loaded successfully');
                 return true;
             } catch (error) {
                 console.error('[StateManager] State load failed:', error);
@@ -741,7 +759,7 @@ export const StateManager = GObject.registerClass(
             (this._state.currentSettings as any)[key] = value;
             (this as any).emit('settings-changed', key, variant);
 
-            console.log(`[StateManager] Setting changed: ${key} = ${JSON.stringify(value)}`);
+            this._debugLog(`[StateManager] Setting changed: ${key} = ${JSON.stringify(value)}`);
         }
 
         // Public utility methods

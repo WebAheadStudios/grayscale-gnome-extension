@@ -420,14 +420,14 @@ export const EffectManager = GObject.registerClass(
 
         // Private Implementation
         private _loadAnimationSettings(): void {
-            const duration = this._stateManager.getSetting('animationDuration');
+            const duration = this._stateManager.getSetting('animation-duration');
             if (typeof duration === 'number') {
                 // Wrap with adjustAnimationTime() to respect "Reduce Motion" and
                 // "Slow Down" accessibility settings (review guideline / AGENTS.md).
                 this._animationSettings.duration = adjustAnimationTime(duration * 1000);
             }
 
-            const performanceMode = this._stateManager.getSetting('performanceMode');
+            const performanceMode = this._stateManager.getSetting('performance-mode');
             this.setPerformanceMode(performanceMode as boolean);
         }
 
@@ -502,10 +502,10 @@ export const EffectManager = GObject.registerClass(
         }
 
         private _handleSettingChange(key: string, variant: any): void {
-            if (key === 'animationDuration') {
+            if (key === 'animation-duration') {
                 const duration = variant.get_double();
                 this._animationSettings.duration = duration * 1000;
-            } else if (key === 'performanceMode') {
+            } else if (key === 'performance-mode') {
                 const enabled = variant.get_boolean();
                 this.setPerformanceMode(enabled);
             }

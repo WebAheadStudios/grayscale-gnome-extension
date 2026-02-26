@@ -98,6 +98,18 @@ export const MonitorManager = GObject.registerClass(
             this._initialized = false;
         }
 
+        // Gate informational output behind debug-logging schema key (review guideline R9)
+        private _debugLog(message: string): void {
+            try {
+                const sc = this._extension.getComponent('SettingsController');
+                if (sc?.getSetting('debug-logging')) {
+                    console.log(message);
+                }
+            } catch {
+                /* ignore — SettingsController not yet initialized */
+            }
+        }
+
         // Initialization and lifecycle
         async initialize(): Promise<boolean> {
             if (this._initialized) {
@@ -105,7 +117,7 @@ export const MonitorManager = GObject.registerClass(
             }
 
             try {
-                console.log('[MonitorManager] Initializing...');
+                this._debugLog('[MonitorManager] Initializing...');
 
                 this._layoutManager = Main.layoutManager;
                 this._hotplugManager = new HotplugEventManager(
@@ -117,7 +129,7 @@ export const MonitorManager = GObject.registerClass(
                 await this._hotplugManager.initialize();
 
                 this._initialized = true;
-                console.log('[MonitorManager] Initialized successfully');
+                this._debugLog('[MonitorManager] Initialized successfully');
                 return true;
             } catch (error) {
                 console.error('[MonitorManager] Initialization failed:', error);
@@ -136,7 +148,7 @@ export const MonitorManager = GObject.registerClass(
         }
 
         destroy(): void {
-            console.log('[MonitorManager] Destroying...');
+            this._debugLog('[MonitorManager] Destroying...');
 
             if (this._hotplugManager) {
                 this._hotplugManager.destroy();
@@ -147,12 +159,12 @@ export const MonitorManager = GObject.registerClass(
             this._monitors.clear();
             this._initialized = false;
 
-            console.log('[MonitorManager] Destroyed');
+            this._debugLog('[MonitorManager] Destroyed');
         }
 
         // Monitor discovery and management
         private async _performInitialScan(): Promise<void> {
-            console.log('[MonitorManager] Performing initial monitor scan...');
+            this._debugLog('[MonitorManager] Performing initial monitor scan...');
 
             const { monitors, changes: _changes } = await this._detectionEngine.detectMonitors();
             this._updateMonitorRegistry(monitors);
@@ -161,13 +173,13 @@ export const MonitorManager = GObject.registerClass(
             this._lastScanTime = Date.now();
             this._scanCount++;
 
-            console.log(
+            this._debugLog(
                 `[MonitorManager] Initial scan complete: ${monitors.length} monitors detected`
             );
         }
 
         async rescanMonitors(): Promise<DetectionResult> {
-            console.log('[MonitorManager] Rescanning monitors...');
+            this._debugLog('[MonitorManager] Rescanning monitors...');
 
             const { monitors, changes } = await this._detectionEngine.detectMonitors();
             this._updateMonitorRegistry(monitors);
@@ -534,8 +546,20 @@ class HotplugEventManager {
         this._signalConnections = [];
     }
 
+    // Gate informational output behind debug-logging schema key (review guideline R9)
+    private _debugLog(message: string): void {
+        try {
+            const sc = (this._monitorManager as any)._extension?.getComponent('SettingsController');
+            if (sc?.getSetting('debug-logging')) {
+                console.log(message);
+            }
+        } catch {
+            /* ignore — extension not yet initialized */
+        }
+    }
+
     async initialize(): Promise<void> {
-        console.log('[HotplugEventManager] Initializing...');
+        this._debugLog('[HotplugEventManager] Initializing...');
 
         // Connect to layout manager signals
         const layoutChangeSignal = Main.layoutManager.connect('monitors-changed', () =>
@@ -546,11 +570,11 @@ class HotplugEventManager {
             signalId: layoutChangeSignal,
         });
 
-        console.log('[HotplugEventManager] Initialized');
+        this._debugLog('[HotplugEventManager] Initialized');
     }
 
     destroy(): void {
-        console.log('[HotplugEventManager] Destroying...');
+        this._debugLog('[HotplugEventManager] Destroying...');
 
         this._signalConnections.forEach(({ object, signalId }) => {
             if (object && signalId) {
@@ -565,17 +589,17 @@ class HotplugEventManager {
         }
 
         this._pendingOperations.clear();
-        console.log('[HotplugEventManager] Destroyed');
+        this._debugLog('[HotplugEventManager] Destroyed');
     }
 
     private _handleMonitorsChanged(): void {
-        console.log('[HotplugEventManager] Layout monitors changed');
+        this._debugLog('[HotplugEventManager] Layout monitors changed');
         this._queueEvent('layout-changed', { source: 'layout-manager', timestamp: Date.now() });
         this._debounceProcessing();
     }
 
     private _handleDisplayConfigChanged(): void {
-        console.log('[HotplugEventManager] Display configuration changed');
+        this._debugLog('[HotplugEventManager] Display configuration changed');
         this._queueEvent('display-config-changed', {
             source: 'meta-display',
             timestamp: Date.now(),
@@ -612,7 +636,7 @@ class HotplugEventManager {
             return;
         }
 
-        console.log(`[HotplugEventManager] Processing ${this._eventQueue.length} events`);
+        this._debugLog(`[HotplugEventManager] Processing ${this._eventQueue.length} events`);
 
         try {
             // Suspend effects during reconfiguration
@@ -634,7 +658,7 @@ class HotplugEventManager {
             // Clear processed events
             this._eventQueue = [];
 
-            console.log('[HotplugEventManager] Hotplug processing completed');
+            this._debugLog('[HotplugEventManager] Hotplug processing completed');
         } catch (error) {
             console.error('[HotplugEventManager] Error processing hotplug events:', error);
 
@@ -663,7 +687,7 @@ class HotplugEventManager {
     }
 
     private async _handleMonitorRemoved(monitor: MonitorInfo): Promise<void> {
-        console.log(`[HotplugEventManager] Monitor ${monitor.index} removed`);
+        this._debugLog(`[HotplugEventManager] Monitor ${monitor.index} removed`);
 
         // Clean up any effects for this monitor
         const operation = this._pendingOperations.get(`remove-${monitor.index}`);
@@ -681,7 +705,7 @@ class HotplugEventManager {
     }
 
     private async _handleMonitorAdded(monitor: MonitorInfo): Promise<void> {
-        console.log(`[HotplugEventManager] Monitor ${monitor.index} added`);
+        this._debugLog(`[HotplugEventManager] Monitor ${monitor.index} added`);
 
         // Initialize monitor state
         const stateManager = (this._monitorManager as any)._extension.getComponent('StateManager');
@@ -708,7 +732,7 @@ class HotplugEventManager {
         previousMonitor: MonitorInfo,
         currentMonitor: MonitorInfo
     ): Promise<void> {
-        console.log(`[HotplugEventManager] Monitor ${currentMonitor.index} modified`);
+        this._debugLog(`[HotplugEventManager] Monitor ${currentMonitor.index} modified`);
 
         // Check if significant changes require effect reapplication
         const significantChange =
@@ -740,7 +764,7 @@ class HotplugEventManager {
     }
 
     private async _attemptRecovery(): Promise<void> {
-        console.log('[HotplugEventManager] Attempting recovery from hotplug error');
+        this._debugLog('[HotplugEventManager] Attempting recovery from hotplug error');
 
         try {
             // Clear all effects
@@ -762,7 +786,7 @@ class HotplugEventManager {
                 }
             }
 
-            console.log('[HotplugEventManager] Recovery completed');
+            this._debugLog('[HotplugEventManager] Recovery completed');
         } catch (recoveryError) {
             console.error('[HotplugEventManager] Recovery failed:', recoveryError);
         }
