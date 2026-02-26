@@ -2,6 +2,78 @@
 
 This file provides guidance to agents when working with code in this repository.
 
+## Global Agent Behavior
+
+These rules apply to **every agent mode** (Code, Architect, Debug, Ask,
+Orchestrator, etc.) when working in this repository.
+
+### Use `sequentialthinking` Before Acting
+
+**MANDATORY for every multi-step task.** Before implementing any fix, feature,
+or non-trivial change, call the `sequentialthinking` MCP tool to:
+
+- Break the problem into discrete steps
+- Validate the planned approach before modifying files
+- Identify assumptions that could be wrong
+- Detect conflicts with existing rules or architecture
+
+Single-file, single-line trivial edits are the only exception.
+
+### No `cd` in Shell Commands Without Explicit User Instruction
+
+**MUST NOT** chain `cd` with `&&` in `execute_command` unless the user
+explicitly asks to change directories.
+
+```
+# ❌ Wrong
+cd /path/to/project && npm run build
+
+# ✅ Correct — use the `cwd` parameter
+{ "command": "npm run build", "cwd": "/path/to/project" }
+```
+
+The `cwd` parameter is scoped to that single call and has no side effects.
+
+### Use context7 for Library Documentation
+
+Before using any library API, look up current docs:
+
+1. Call `resolve-library-id` (context7 MCP) with the library name
+2. Call `query-docs` (context7 MCP) with the resolved ID and the specific
+   question
+3. Only then write code against that API
+
+This project targets GNOME Shell **45/46** — always confirm API availability in
+that version range before using it.
+
+### Knowledge Graph for Persistent Memory
+
+**At the start of every session:**
+
+- Call `read_graph` (MCP memory) to retrieve accumulated preferences and best
+  practices, then apply them to the current task.
+
+**After significant decisions or discoveries:**
+
+- Call `create_entities` or `add_observations` (MCP memory) to record new
+  patterns, bug root-causes, workflow preferences, and project-specific
+  architecture decisions.
+
+### Prefer Built-in RooCode Tools Over Shell Commands
+
+Use the most specific built-in tool; fall back to `execute_command` only when no
+RooCode tool can do the job.
+
+| Task                      | Use this tool     | Not this            |
+| ------------------------- | ----------------- | ------------------- |
+| Search code semantically  | `codebase_search` | `grep` via shell    |
+| Regex search across files | `search_files`    | `grep -r` via shell |
+| Read a file               | `read_file`       | `cat` via shell     |
+| List directory contents   | `list_files`      | `ls` via shell      |
+| Write a new file          | `write_to_file`   | shell redirect      |
+| Edit an existing file     | `apply_diff`      | `sed` via shell     |
+| Run build / tests / tsc   | `execute_command` | (no built-in)       |
+
 ## High-signal project specifics
 
 - Dual state keys are intentional: `grayscale-enabled` and `global-enabled` are

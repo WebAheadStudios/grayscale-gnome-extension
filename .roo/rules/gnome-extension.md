@@ -109,15 +109,66 @@ npm run dev:nested   # alias for: dbus-run-session gnome-shell --nested --waylan
 
 GJS is the GNOME JavaScript runtime, not Node.js. These APIs crash at runtime:
 
-| Prohibited           | GJS Alternative                                     |
-| -------------------- | --------------------------------------------------- |
-| `require()`          | ESM `import` with `gi://` or `resource:///`         |
-| `fs.readFile()`      | `Gio.File.new_for_path().load_contents(null, null)` |
-| `path.join()`        | `GLib.build_filenamev([...])`                       |
-| `process.env.FOO`    | `GLib.getenv('FOO')`                                |
-| `setTimeout(fn, ms)` | `GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, fn)`   |
-| `Buffer`             | `GLib.Bytes` / `Uint8Array`                         |
-| `fetch()`            | `Soup.Session`                                      |
+| Prohibited                  | GJS Alternative                                     |
+| --------------------------- | --------------------------------------------------- |
+| `require()`                 | ESM `import` with `gi://` or `resource:///`         |
+| `fs.readFile()`             | `Gio.File.new_for_path().load_contents(null, null)` |
+| `path.join()`               | `GLib.build_filenamev([...])`                       |
+| `process.env.FOO`           | `GLib.getenv('FOO')`                                |
+| `setTimeout(fn, ms)`        | `GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, fn)`   |
+| `setInterval(fn, ms)`       | `GLib.timeout_add` returning `GLib.SOURCE_CONTINUE` |
+| `clearTimeout/Interval(id)` | `GLib.source_remove(id)` — call in `disable()`      |
+| `Buffer`                    | `GLib.Bytes` / `Uint8Array`                         |
+| `fetch()`                   | `Soup.Session`                                      |
+
+---
+
+## GObject Signal Parameter Types — TYPE_VARIANT vs TYPE_JSOBJECT
+
+`GObject.TYPE_VARIANT` is exclusively for parameters that carry an actual
+`GLib.Variant` object. Using it for plain JavaScript objects causes a runtime
+type mismatch.
+
+```typescript
+// ✅ Correct — plain JS object payload:
+Signals: {
+    'settings-changed': {
+        param_types: [GObject.TYPE_JSOBJECT],
+    },
+}
+
+// ✅ Correct — real GLib.Variant payload:
+Signals: {
+    'variant-received': {
+        param_types: [GObject.TYPE_VARIANT],
+    },
+}
+
+// ❌ Wrong — TYPE_VARIANT used for a plain JS object:
+Signals: {
+    'settings-changed': {
+        param_types: [GObject.TYPE_VARIANT], // crashes at emit() time
+    },
+}
+```
+
+Use `GObject.TYPE_JSOBJECT` whenever the signal payload is a plain JS object,
+array, or any non-`GLib.Variant` reference type.
+
+---
+
+## Extension.getLogger() — GNOME 48+ Only
+
+`Extension.getLogger()` was introduced in **GNOME Shell 48**. This project
+targets **GNOME 45/46**, so this call crashes unconditionally:
+
+```typescript
+// ❌ Crashes on GNOME 45/46:
+const log = this.getLogger(); // TypeError: this.getLogger is not a function
+```
+
+Use the infrastructure [`Logger`](src/infrastructure/Logger.ts) directly in
+`src/extension.ts` instead (see `AGENTS.md` for the full pattern).
 
 ---
 
