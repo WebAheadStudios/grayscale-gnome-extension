@@ -54,23 +54,32 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
     private _errorHandler: ErrorHandler | null = null;
     private _signalConnections: SignalConnection[];
     private _logger: InstanceType<typeof Logger> | null = null;
-    private _log!: ExtensionLogger;
+    // No-op default so calls before enable() are safe; replaced with real logger in enable().
+    private _log: ExtensionLogger = { log: () => {}, warn: () => {}, error: () => {} };
+    // GLib timer source IDs — stored so we can cancel them in disable() (review guideline R4)
+    private _autoEnableTimerId: number | null = null;
+    private _sessionRestoreTimerId: number | null = null;
 
     declare metadata: GrayscaleExtensionMetadata;
 
     constructor(metadata: GrayscaleExtensionMetadata) {
         super(metadata);
 
-        // Use GrayscaleLogger (infrastructure/Logger.ts) so every log line is
-        // prefixed with the extension UUID. Extension.getLogger() was only added
-        // in GNOME Shell 48 — this extension targets GNOME 45/46, so we cannot
-        // rely on that API.
-        this._logger = new Logger({
-            level: LogLevel.Info,
-            enableConsole: true,
-        });
+        // Constructor MUST NOT create GObject instances (review guideline R1).
+        // Logger (a GObject subclass) is instantiated in enable() instead.
+        this._components = new Map();
+        this._initialized = false;
+        this._errorHandler = null;
+        this._signalConnections = [];
+    }
+
+    override enable(): void {
+        // Instantiate GObject Logger here (not in constructor — review guideline R1).
+        // Extension.getLogger() exists only in GNOME Shell 48+; use infrastructure
+        // Logger directly so this works on GNOME 45/46.
+        this._logger = new Logger({ level: LogLevel.Info, enableConsole: true });
         const _componentLog = this._logger.createComponentLogger(
-            metadata.uuid ?? 'grayscale-toggle@webaheadstudios.com',
+            this.metadata.uuid ?? 'grayscale-toggle@webaheadstudios.com',
             LogCategory.System
         );
         this._log = {
@@ -79,13 +88,6 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             error: (msg: string) => _componentLog.error(msg),
         };
 
-        this._components = new Map();
-        this._initialized = false;
-        this._errorHandler = null;
-        this._signalConnections = [];
-    }
-
-    override enable(): void {
         try {
             this._log.log('Enabling extension...');
 
@@ -108,6 +110,17 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
 
         this._log.log('Disabling extension...');
 
+        // Cancel any pending one-shot timers before tearing down components
+        // (review guideline R4 — all GLib source IDs must be removed in disable).
+        if (this._autoEnableTimerId) {
+            GLib.source_remove(this._autoEnableTimerId);
+            this._autoEnableTimerId = null;
+        }
+        if (this._sessionRestoreTimerId) {
+            GLib.source_remove(this._sessionRestoreTimerId);
+            this._sessionRestoreTimerId = null;
+        }
+
         try {
             this._disconnectSignals();
             this._destroyComponents();
@@ -121,6 +134,8 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
         // Flush and destroy the logger last so all disable messages are captured
         this._logger?.destroy();
         this._logger = null;
+        // Reset _log to no-op so any post-disable calls are safe
+        this._log = { log: () => {}, warn: () => {}, error: () => {} };
     }
 
     getComponent(name: string): ExtensionComponent | null {
@@ -458,8 +473,11 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             if (autoEnable) {
                 this._log.log('Auto-enable is active, enabling grayscale...');
 
-                // Delay auto-enable to allow all components to fully initialize
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+                // Delay auto-enable to allow all components to fully initialize.
+                // Store the source ID so disable() can cancel this timer if it
+                // fires after the extension is disabled (review guideline R4).
+                this._autoEnableTimerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+                    this._autoEnableTimerId = null;
                     (stateManager as any)
                         .setGrayscaleState(true, {
                             source: 'auto-enable',
@@ -477,7 +495,9 @@ export default class GrayscaleExtension extends Extension implements ExtensionMa
             if (globalEnabled && !autoEnable) {
                 this._log.log(`Restoring previous session state: ${globalEnabled}`);
 
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+                // Store the source ID for the same reason as _autoEnableTimerId above.
+                this._sessionRestoreTimerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+                    this._sessionRestoreTimerId = null;
                     (stateManager as any)
                         .setGrayscaleState(globalEnabled, {
                             source: 'session-restore',
