@@ -1,6 +1,9 @@
 export default {
     '*.{ts,js}': ['eslint --fix', 'prettier --write'],
-    '*.{json,md}': ['prettier --write'],
+    '*.md': ['prettier --write'],
+    // Exclude package-lock.json — it is managed exclusively by npm and must
+    // never be reformatted by prettier (causes spurious diffs).
+    '!(package-lock).json': ['prettier --write'],
     // Use a function so lint-staged does NOT append staged filenames.
     // Passing filenames to tsc causes single-file mode (ignores tsconfig.json
     // and gi:// path aliases), producing false-positive errors.
