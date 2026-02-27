@@ -3,14 +3,14 @@
  * Tests for BaseComponent, ComponentRegistry, SignalManager, and other infrastructure
  */
 
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import type { ExtensionComponent, ComponentState, ComponentConfig } from '../types/infrastructure';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import type { ComponentConfig } from '../types/infrastructure';
 
 // Import components to test
 import { BaseComponent } from '../infrastructure/BaseComponent';
 import { ComponentRegistry } from '../infrastructure/ComponentRegistry';
-import { SignalManager } from '../infrastructure/SignalManager';
 import { Logger } from '../infrastructure/Logger';
+import { SignalManager } from '../infrastructure/SignalManager';
 
 describe('Infrastructure Components', () => {
     describe('BaseComponent', () => {

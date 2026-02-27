@@ -3,21 +3,18 @@
  * Validates infrastructure components, memory management, and performance
  */
 
-import GLib from 'gi://GLib';
 import {
     BaseComponent,
     ComponentRegistry,
-    SignalManager,
-    EffectPool,
-    ErrorBoundary,
-    Logger,
-    PerformanceMonitor,
     ConfigCache,
     createDesaturateEffectPool,
     createInfrastructureServices,
+    ErrorBoundary,
+    Logger,
     LogLevel,
-    ErrorSeverity,
+    PerformanceMonitor,
     RecoveryStrategy,
+    SignalManager,
 } from '../infrastructure/index.js';
 
 // Test result interface
@@ -89,7 +86,7 @@ class MockComponent extends BaseComponent {
 }
 
 // Error-prone component for testing error boundaries
-class ErrorProneComponent extends BaseComponent {
+class _ErrorProneComponent extends BaseComponent {
     constructor(extension: any) {
         super(extension, {
             name: 'ErrorProneComponent',
@@ -106,7 +103,7 @@ class ErrorProneComponent extends BaseComponent {
 export class ArchitectureValidator {
     private _results: TestResult[] = [];
     private _logger: any;
-    private _startTime: number = 0;
+    private _startTime = 0;
 
     constructor() {
         this._logger = new Logger({
@@ -166,19 +163,26 @@ export class ArchitectureValidator {
 
             // Test initialization
             const initialized = await component.initialize();
-            if (!initialized) throw new Error('Component failed to initialize');
+            if (!initialized) {
+                throw new Error('Component failed to initialize');
+            }
 
             // Test enable/disable
             component.enable();
-            if (!component.isEnabled) throw new Error('Component not enabled');
+            if (!component.isEnabled) {
+                throw new Error('Component not enabled');
+            }
 
             component.disable();
-            if (component.isEnabled) throw new Error('Component still enabled after disable');
+            if (component.isEnabled) {
+                throw new Error('Component still enabled after disable');
+            }
 
             // Test destruction
             component.destroy();
-            if (component.phase !== 'destroyed')
+            if (component.phase !== 'destroyed') {
                 throw new Error('Component not properly destroyed');
+            }
 
             return { lifecycle: 'complete' };
         });
@@ -193,7 +197,7 @@ export class ArchitectureValidator {
             registry.register(
                 'MockComponent',
                 {
-                    create: (ext, metadata, config) => new MockComponent(ext),
+                    create: (ext, _metadata, _config) => new MockComponent(ext),
                     dependencies: [],
                     priority: 0,
                 },
@@ -323,9 +327,6 @@ export class ArchitectureValidator {
                 maxRetries: 2,
             });
 
-            let recoveryAttempted = false;
-            let recoverySuccessful = false;
-
             // Test error catching and recovery
             let retryCount = 0;
             const result = await errorBoundary.catch(
@@ -450,7 +451,7 @@ export class ArchitectureValidator {
             const mockSettings = {
                 get_string: (key: string) => `value_${key}`,
                 get_boolean: (key: string) => key.includes('enabled'),
-                get_int: (key: string) => 42,
+                get_int: (_key: string) => 42,
                 set_string: () => {},
                 set_boolean: () => {},
                 set_int: () => {},
@@ -460,7 +461,7 @@ export class ArchitectureValidator {
                 path: '/test/path/',
                 settings_schema: {
                     list_keys: () => ['test-string', 'test-boolean', 'test-int'],
-                    get_key: (key: string) => ({
+                    get_key: (_key: string) => ({
                         get_value_type: () => ({ dup_string: () => 'string' }),
                         get_default_value: () => ({ unpack: () => 'default' }),
                         get_description: () => 'Test key',
@@ -514,11 +515,21 @@ export class ArchitectureValidator {
             });
 
             // Verify all services are created and connected
-            if (!services.logger) throw new Error('Logger not created');
-            if (!services.signalManager) throw new Error('SignalManager not created');
-            if (!services.errorBoundary) throw new Error('ErrorBoundary not created');
-            if (!services.performanceMonitor) throw new Error('PerformanceMonitor not created');
-            if (!services.effectPool) throw new Error('EffectPool not created');
+            if (!services.logger) {
+                throw new Error('Logger not created');
+            }
+            if (!services.signalManager) {
+                throw new Error('SignalManager not created');
+            }
+            if (!services.errorBoundary) {
+                throw new Error('ErrorBoundary not created');
+            }
+            if (!services.performanceMonitor) {
+                throw new Error('PerformanceMonitor not created');
+            }
+            if (!services.effectPool) {
+                throw new Error('EffectPool not created');
+            }
 
             // Test cross-service communication
             services.logger.info('Integration test message');
@@ -640,7 +651,7 @@ export class ArchitectureValidator {
         console.log(`Tests: ${report.passed}/${report.totalTests} passed`);
 
         if (report.failed > 0) {
-            console.log(`\n❌ Failed Tests:`);
+            console.log('\n❌ Failed Tests:');
             report.results
                 .filter(r => !r.passed)
                 .forEach(test => {
@@ -648,12 +659,12 @@ export class ArchitectureValidator {
                 });
         }
 
-        console.log(`\n💾 Memory Usage:`);
+        console.log('\n💾 Memory Usage:');
         console.log(`  Before: ${report.memoryUsage.before} bytes`);
         console.log(`  After: ${report.memoryUsage.after} bytes`);
         console.log(`  Leaked: ${report.memoryUsage.leaked} bytes`);
 
-        console.log(`\n⚡ Performance Metrics:`);
+        console.log('\n⚡ Performance Metrics:');
         console.log(
             `  Component Init: ${report.performance.componentInitialization.toFixed(2)}ms avg`
         );

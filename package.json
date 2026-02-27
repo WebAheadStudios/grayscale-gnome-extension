@@ -10,7 +10,7 @@
         "build:prod": "npm run clean && npm run compile && npm run compile:runtime && npm run copy-files && npm run compile-schemas && npm run package",
         "compile": "tsc --noEmit",
         "compile:runtime": "tsc -p tsconfig.runtime.json",
-        "lint": "eslint src/ --max-warnings 50",
+        "lint": "eslint src/ --max-warnings 0",
         "lint:fix": "eslint src/ --fix",
         "lint:strict": "eslint src/ --max-warnings 0",
         "format": "prettier --write src/",

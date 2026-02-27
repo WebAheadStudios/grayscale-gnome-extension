@@ -147,6 +147,31 @@ export default [
         },
     },
 
+    // GJS implementation files — @typescript-eslint/no-explicit-any is explicitly disabled here.
+    // GNOME Shell's @girs type packages are incomplete for runtime Shell methods
+    // (e.g. connectObject(), ease_property(), Shell actor extensions) so 'any' casts
+    // are a necessary interop pattern throughout this extension.
+    // Reference: AGENTS.md — "@typescript-eslint/no-explicit-any: GJS interop frequently requires any"
+    {
+        files: ['src/**/*.ts'],
+        rules: {
+            '@typescript-eslint/no-explicit-any': 'off',
+            '@typescript-eslint/no-non-null-assertion': 'off',
+        },
+    },
+
+    // Test files are intentionally excluded from tsconfig.json (type-check scope caveat; see AGENTS.md).
+    // Setting project: null prevents @typescript-eslint/parser from failing with
+    // "file not found in any provided project" when it tries to load type information.
+    {
+        files: ['src/tests/**/*.ts'],
+        languageOptions: {
+            parserOptions: {
+                project: null,
+            },
+        },
+    },
+
     // Configuration for JavaScript files
     {
         files: ['**/*.js', '**/*.jsx'],

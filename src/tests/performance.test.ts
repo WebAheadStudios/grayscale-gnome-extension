@@ -3,7 +3,7 @@
  * Tests for measuring extension performance and detecting regressions
  */
 
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 interface PerformanceMetrics {
     startupTime: number;
@@ -12,18 +12,11 @@ interface PerformanceMetrics {
     signalHandlingTime: number;
 }
 
-interface BenchmarkResult {
-    operation: string;
-    duration: number;
-    memory: number;
-    iterations: number;
-}
-
 describe('Performance Benchmarks', () => {
-    let performanceMetrics: PerformanceMetrics;
+    let _performanceMetrics: PerformanceMetrics;
 
     beforeEach(() => {
-        performanceMetrics = {
+        _performanceMetrics = {
             startupTime: 0,
             memoryUsage: 0,
             effectApplicationTime: 0,
@@ -51,7 +44,7 @@ describe('Performance Benchmarks', () => {
                 const start = performance.now();
 
                 // Simulate component initialization
-                const mockConfig = {
+                const _mockConfig = {
                     name: `TestComponent${i}`,
                     version: '1.0.0',
                     dependencies: [],

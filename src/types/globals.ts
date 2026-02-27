@@ -6,7 +6,7 @@
 // Only extend globals that aren't already declared in ambient types
 declare global {
     // Additional GNOME Shell globals that might not be in @girs packages
-    function logError(error: Error | any, prefix?: string): void;
+    function logError(error: unknown, prefix?: string): void;
 }
 
 export {};

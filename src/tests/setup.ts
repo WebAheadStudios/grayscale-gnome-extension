@@ -253,7 +253,7 @@ global.testUtils = {
         connector: `DP-${index + 1}`,
     }),
 
-    createMockSettings: (schema = 'test.schema') => new global.imports.gi.Gio.Settings(),
+    createMockSettings: (_schema = 'test.schema') => new global.imports.gi.Gio.Settings(),
 
     mockSignalConnection: () => ({
         id: Math.random(),
