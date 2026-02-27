@@ -2,7 +2,7 @@
     "uuid": "grayscale-toggle@webaheadstudios.com",
     "name": "Grayscale Toggle",
     "description": "Toggle grayscale mode across all monitors with a keyboard shortcut. Reduce color distractions to improve focus, reading, and digital wellness based on research into screen time and attention. Features multi-monitor support, Quick Settings integration, and full preferences.",
-    "version": 1,
+    "version": 2,
     "shell-version": ["45", "46", "47", "48"],
     "url": "https://github.com/webaheadstudios/grayscale-gnome-extension",
     "settings-schema": "org.gnome.shell.extensions.grayscale-toggle",

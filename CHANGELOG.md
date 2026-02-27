@@ -1,3 +1,16 @@
+## [1.0.1](https://github.com/webaheadstudios/grayscale-gnome-extension/compare/v1.0.0...v1.0.1) (2026-02-27)
+
+### Bug Fixes
+
+- **panel:** open preferences from panel menu
+  ([027a955](https://github.com/webaheadstudios/grayscale-gnome-extension/commit/027a9552429d62414836c884b12cfa084880c870))
+- **panel:** refresh status after reset all
+  ([98ca482](https://github.com/webaheadstudios/grayscale-gnome-extension/commit/98ca4825ed763e53ebc3ee67c743bb1eb96b5c63))
+- **state:** apply persisted grayscale on startup
+  ([a2f8ef3](https://github.com/webaheadstudios/grayscale-gnome-extension/commit/a2f8ef334fadd7790dabb421f352d6764df4b965))
+- **state:** keep grayscale-enabled and global-enabled in sync
+  ([0bc8e8f](https://github.com/webaheadstudios/grayscale-gnome-extension/commit/0bc8e8f054ec1d170a426923655d9d8840988fb1))
+
 ## 1.0.0 (2026-02-26)
 
 ### Features

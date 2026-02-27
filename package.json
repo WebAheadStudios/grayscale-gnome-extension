@@ -1,6 +1,6 @@
 {
     "name": "grayscale-toggle",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Toggle grayscale effect for monitors with keyboard shortcuts and panel indicator",
     "type": "module",
     "main": "src/extension.ts",
