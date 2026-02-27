@@ -48,7 +48,7 @@ jobs:
               run: node scripts/validate-schema.js
 
             - name: Upload extension package
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: extension-package
                   path: dist/grayscale-toggle@webaheadstudios.com.zip
