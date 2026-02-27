@@ -67,7 +67,7 @@
         "node": ">=18.0.0"
     },
     "devDependencies": {
-        "@jest/globals": "^29.7.0",
+        "@jest/globals": "^30.2.0",
         "@semantic-release/changelog": "^6.0.3",
         "@semantic-release/exec": "^6.0.3",
         "@semantic-release/git": "^10.0.1",
