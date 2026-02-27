@@ -385,12 +385,18 @@ export const GrayscalePanelButton = GObject.registerClass(
          */
         private _onOpenPreferences(): void {
             try {
-                // Try to open extension preferences
-                if (this._extension?.uuid) {
-                    (Main.extensionManager as any).openExtensionPrefs(this._extension.uuid);
-                } else {
+                if (!this._extension) {
                     this._showNotification(_('Preferences not available'));
+                    return;
                 }
+
+                if (typeof (this._extension as any).openPreferences === 'function') {
+                    (this._extension as any).openPreferences();
+                    return;
+                }
+
+                const uuid = this._extension?.uuid ?? 'grayscale-toggle@webaheadstudios.com';
+                (Main.extensionManager as any).openExtensionPrefs(uuid);
             } catch (error) {
                 console.error('[Grayscale] Error opening preferences:', error);
                 this._showNotification(_('Could not open preferences'));
