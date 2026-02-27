@@ -2,7 +2,7 @@ name: Main Branch Quality Assurance
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 concurrency:

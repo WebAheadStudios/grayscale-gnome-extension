@@ -1,204 +1,204 @@
 name: Continuous Integration
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
+    push:
+        branches: [master]
+    pull_request:
+        branches: [master]
+    workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
 
 jobs:
-  lint-and-typecheck:
-    name: Lint and Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    lint-and-typecheck:
+        name: Lint and Type Check
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: '.node-version'
-          cache: 'npm'
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.node-version'
+                  cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+            - name: Install dependencies
+              run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint:strict
+            - name: Run ESLint
+              run: npm run lint:strict
 
-      - name: Run Prettier check
-        run: npm run format:check
+            - name: Run Prettier check
+              run: npm run format:check
 
-      - name: TypeScript compilation check
-        run: npm run compile
+            - name: TypeScript compilation check
+              run: npm run compile
 
-  test:
-    name: Run Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    test:
+        name: Run Tests
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: '.node-version'
-          cache: 'npm'
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.node-version'
+                  cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+            - name: Install dependencies
+              run: npm ci
 
-      - name: Run tests with coverage
-        run: npm run test:ci
+            - name: Run tests with coverage
+              run: npm run test:ci
 
-      # Codecov removed - paid service
+            # Codecov removed - paid service
 
-  build:
-    name: Build Extension
-    runs-on: ubuntu-latest
-    needs: [lint-and-typecheck, test]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    build:
+        name: Build Extension
+        runs-on: ubuntu-latest
+        needs: [lint-and-typecheck, test]
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: '.node-version'
-          cache: 'npm'
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.node-version'
+                  cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+            - name: Install dependencies
+              run: npm ci
 
-      - name: Build extension
-        run: npm run build:prod
+            - name: Build extension
+              run: npm run build:prod
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: extension-build
-          path: dist/
-          retention-days: 7
+            - name: Upload build artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: extension-build
+                  path: dist/
+                  retention-days: 7
 
-      - name: Upload extension package
-        uses: actions/upload-artifact@v4
-        with:
-          name: extension-package
-          path: dist/grayscale-toggle@webaheadstudios.com.zip
-          retention-days: 30
+            - name: Upload extension package
+              uses: actions/upload-artifact@v4
+              with:
+                  name: extension-package
+                  path: dist/grayscale-toggle@webaheadstudios.com.zip
+                  retention-days: 30
 
-  security-audit:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    security-audit:
+        name: Security Audit
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: '.node-version'
-          cache: 'npm'
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.node-version'
+                  cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+            - name: Install dependencies
+              run: npm ci
 
-      - name: Run npm audit
-        run: npm audit --audit-level=moderate
+            - name: Run npm audit
+              run: npm audit --audit-level=moderate
 
-      - name: Run CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          languages: javascript
+            - name: Run CodeQL Analysis
+              uses: github/codeql-action/analyze@v3
+              with:
+                  languages: javascript
 
-  validate-metadata:
-    name: Validate Extension Metadata
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    validate-metadata:
+        name: Validate Extension Metadata
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-      - name: Validate metadata.json
-        run: |
-          if [ ! -f "src/metadata.json" ]; then
-            echo "Error: metadata.json not found"
-            exit 1
-          fi
+            - name: Validate metadata.json
+              run: |
+                  if [ ! -f "src/metadata.json" ]; then
+                    echo "Error: metadata.json not found"
+                    exit 1
+                  fi
 
-          # Basic JSON validation
-          if ! python3 -m json.tool src/metadata.json > /dev/null; then
-            echo "Error: Invalid JSON in metadata.json"
-            exit 1
-          fi
+                  # Basic JSON validation
+                  if ! python3 -m json.tool src/metadata.json > /dev/null; then
+                    echo "Error: Invalid JSON in metadata.json"
+                    exit 1
+                  fi
 
-          # Check required fields
-          if ! grep -q '"uuid"' src/metadata.json; then
-            echo "Error: UUID missing from metadata.json"
-            exit 1
-          fi
+                  # Check required fields
+                  if ! grep -q '"uuid"' src/metadata.json; then
+                    echo "Error: UUID missing from metadata.json"
+                    exit 1
+                  fi
 
-          if ! grep -q '"shell-version"' src/metadata.json; then
-            echo "Error: shell-version missing from metadata.json"
-            exit 1
-          fi
+                  if ! grep -q '"shell-version"' src/metadata.json; then
+                    echo "Error: shell-version missing from metadata.json"
+                    exit 1
+                  fi
 
-          echo "metadata.json validation passed"
+                  echo "metadata.json validation passed"
 
-      - name: Validate schema files
-        run: |
-          if [ ! -f "schemas/org.gnome.shell.extensions.grayscale-toggle.gschema.xml" ]; then
-            echo "Error: GSchema file not found"
-            exit 1
-          fi
+            - name: Validate schema files
+              run: |
+                  if [ ! -f "schemas/org.gnome.shell.extensions.grayscale-toggle.gschema.xml" ]; then
+                    echo "Error: GSchema file not found"
+                    exit 1
+                  fi
 
-          # Basic XML validation
-          if ! xmllint --noout schemas/*.gschema.xml 2>/dev/null; then
-            echo "Error: Invalid XML in schema file"
-            exit 1
-          fi
+                  # Basic XML validation
+                  if ! xmllint --noout schemas/*.gschema.xml 2>/dev/null; then
+                    echo "Error: Invalid XML in schema file"
+                    exit 1
+                  fi
 
-          echo "Schema validation passed"
+                  echo "Schema validation passed"
 
-  quality-gates:
-    name: Quality Gates
-    runs-on: ubuntu-latest
-    needs: [lint-and-typecheck, test, security-audit, validate-metadata]
-    if: always()
-    steps:
-      - name: Check job results
-        run: |
-          if [[ "${{ needs.lint-and-typecheck.result }}" != "success" ]]; then
-            echo "❌ Lint and type check failed"
-            exit 1
-          fi
+    quality-gates:
+        name: Quality Gates
+        runs-on: ubuntu-latest
+        needs: [lint-and-typecheck, test, security-audit, validate-metadata]
+        if: always()
+        steps:
+            - name: Check job results
+              run: |
+                  if [[ "${{ needs.lint-and-typecheck.result }}" != "success" ]]; then
+                    echo "❌ Lint and type check failed"
+                    exit 1
+                  fi
 
-          if [[ "${{ needs.test.result }}" != "success" ]]; then
-            echo "❌ Tests failed"
-            exit 1
-          fi
+                  if [[ "${{ needs.test.result }}" != "success" ]]; then
+                    echo "❌ Tests failed"
+                    exit 1
+                  fi
 
-          if [[ "${{ needs.security-audit.result }}" != "success" ]]; then
-            echo "❌ Security audit failed"
-            exit 1
-          fi
+                  if [[ "${{ needs.security-audit.result }}" != "success" ]]; then
+                    echo "❌ Security audit failed"
+                    exit 1
+                  fi
 
-          if [[ "${{ needs.validate-metadata.result }}" != "success" ]]; then
-            echo "❌ Metadata validation failed"
-            exit 1
-          fi
+                  if [[ "${{ needs.validate-metadata.result }}" != "success" ]]; then
+                    echo "❌ Metadata validation failed"
+                    exit 1
+                  fi
 
-          echo "✅ All quality gates passed"
+                  echo "✅ All quality gates passed"
 
-      - name: Quality gates summary
-        run: |
-          echo "## Quality Gates Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Linting and type checking" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Unit tests" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Security audit" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Metadata validation" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Extension build" >> $GITHUB_STEP_SUMMARY
+            - name: Quality gates summary
+              run: |
+                  echo "## Quality Gates Summary" >> $GITHUB_STEP_SUMMARY
+                  echo "- ✅ Linting and type checking" >> $GITHUB_STEP_SUMMARY
+                  echo "- ✅ Unit tests" >> $GITHUB_STEP_SUMMARY
+                  echo "- ✅ Security audit" >> $GITHUB_STEP_SUMMARY
+                  echo "- ✅ Metadata validation" >> $GITHUB_STEP_SUMMARY
+                  echo "- ✅ Extension build" >> $GITHUB_STEP_SUMMARY
