@@ -69,7 +69,7 @@ function generateApiDocs() {
                 apiDocs += `\`\`\`typescript\n${exp.signature}\n\`\`\`\n\n`;
             }
             if (exp.params && exp.params.length > 0) {
-                apiDocs += `**Parameters:**\n\n`;
+                apiDocs += '**Parameters:**\n\n';
                 for (const param of exp.params) {
                     apiDocs += `- \`${param.name}\` (${param.type || 'any'}): ${param.description || 'No description'}\n`;
                 }
@@ -111,13 +111,19 @@ function extractExports(content) {
         let jsdocStart = -1;
         for (let i = lines.length - 1; i >= 0; i--) {
             const line = lines[i].trim();
-            if (line === '*/') continue;
-            if (line.startsWith('*')) continue;
+            if (line === '*/') {
+                continue;
+            }
+            if (line.startsWith('*')) {
+                continue;
+            }
             if (line.startsWith('/**')) {
                 jsdocStart = i;
                 break;
             }
-            if (line && !line.startsWith('//')) break;
+            if (line && !line.startsWith('//')) {
+                break;
+            }
         }
 
         let description = '';
