@@ -1,3 +1,22 @@
+## <small>1.0.2 (2026-02-27)</small>
+
+- style(scripts): apply prettier formatting
+  ([cf40c56](https://github.com/webaheadstudios/grayscale-gnome-extension/commit/cf40c56))
+- style(src): apply prettier formatting
+  ([a9facf1](https://github.com/webaheadstudios/grayscale-gnome-extension/commit/a9facf1))
+- fix(lint): extend lint coverage to scripts/ and root config files
+  ([fcc2b61](https://github.com/webaheadstudios/grayscale-gnome-extension/commit/fcc2b61))
+- fix(lint): resolve all ESLint errors for professional code quality
+  ([9e5ac80](https://github.com/webaheadstudios/grayscale-gnome-extension/commit/9e5ac80))
+- chore(test): remove Jest test infrastructure
+  ([e0c3728](https://github.com/webaheadstudios/grayscale-gnome-extension/commit/e0c3728))
+- ci: use same lint rules as development (not strict)
+  ([10d0dba](https://github.com/webaheadstudios/grayscale-gnome-extension/commit/10d0dba))
+- build(deps): bump tar and semantic-release (#1)
+  ([95ef809](https://github.com/webaheadstudios/grayscale-gnome-extension/commit/95ef809)),
+  closes
+  [#1](https://github.com/webaheadstudios/grayscale-gnome-extension/issues/1)
+
 ## [1.0.1](https://github.com/webaheadstudios/grayscale-gnome-extension/compare/v1.0.0...v1.0.1) (2026-02-27)
 
 ### Bug Fixes
