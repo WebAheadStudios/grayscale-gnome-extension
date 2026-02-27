@@ -3,11 +3,9 @@
 import chalk from 'chalk';
 import { execSync } from 'child_process';
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'fs';
-import { createRequire } from 'module';
 import { basename, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
-const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -45,11 +43,6 @@ function info(message, ...args) {
     console.log(chalk.blue('ℹ️'), chalk.blue(message), ...args);
 }
 
-function step(stepNumber, total, message) {
-    const progress = chalk.magenta(`[${stepNumber}/${total}]`);
-    console.log(progress, chalk.bold(message));
-}
-
 function exec(command, options = {}) {
     try {
         return execSync(command, {
@@ -57,7 +50,7 @@ function exec(command, options = {}) {
             cwd: PROJECT_ROOT,
             ...options,
         });
-    } catch (err) {
+    } catch {
         error(`Command failed: ${command}`);
     }
 }
@@ -69,7 +62,7 @@ function execSilent(command, options = {}) {
             cwd: PROJECT_ROOT,
             ...options,
         });
-    } catch (err) {
+    } catch {
         return null;
     }
 }
@@ -100,7 +93,7 @@ async function validateTypeScript() {
     try {
         exec('npx tsc --noEmit');
         success('TypeScript validation passed');
-    } catch (err) {
+    } catch {
         error('TypeScript validation failed');
     }
 }
@@ -109,9 +102,9 @@ async function runLinting() {
     log('Running ESLint...');
 
     try {
-        exec('npx eslint src/ --max-warnings 0');
+        exec('npx eslint src/ scripts/ eslint.config.js lint-staged.config.js --max-warnings 0');
         success('Linting passed');
-    } catch (err) {
+    } catch {
         error('Linting failed');
     }
 }
@@ -122,7 +115,7 @@ async function copySourceFiles() {
     // Copy all source files (including icon.svg and metadata.json)
     cpSync(SRC_DIR, BUILD_DIR, {
         recursive: true,
-        filter: (src, dest) => {
+        filter: (src, _dest) => {
             // Skip TypeScript files in production (we'll use compiled JS)
             if (isProduction && src.endsWith('.ts')) {
                 return false;
@@ -162,7 +155,7 @@ async function compileSchemas() {
             try {
                 execSilent(`glib-compile-schemas "${buildSchemasDir}"`);
                 success('GSettings schemas compiled');
-            } catch (err) {
+            } catch {
                 log(
                     'Warning: Schema compilation failed, they will be compiled during installation'
                 );
@@ -211,7 +204,7 @@ async function compileTranslations() {
                 `msgfmt "${join(PO_DIR, poFile)}" -o "${join(langDir, 'grayscale-toggle.mo')}"`
             );
             log(`Compiled translation for ${lang}`);
-        } catch (err) {
+        } catch {
             log(`Warning: Failed to compile translation for ${lang}`);
         }
     }
@@ -254,7 +247,7 @@ async function validateJavaScript() {
         const filePath = join(BUILD_DIR, jsFile);
         try {
             execSilent(`node -c "${filePath}"`);
-        } catch (err) {
+        } catch {
             error(`Syntax error in ${jsFile}`);
         }
     }
@@ -279,7 +272,7 @@ async function createDistributionPackage() {
         exec(`unzip -l "${packagePath}"`);
 
         return packagePath;
-    } catch (err) {
+    } catch {
         error('Failed to create distribution package');
     }
 }
@@ -301,7 +294,7 @@ async function getExtensionStatus(uuid) {
         }
 
         return 'unknown';
-    } catch (err) {
+    } catch {
         return 'not-installed';
     }
 }
@@ -397,7 +390,7 @@ async function build() {
         await compileTranslations();
 
         // Validation
-        const metadata = await validateMetadata();
+        await validateMetadata();
         await validateJavaScript();
 
         // Create package
