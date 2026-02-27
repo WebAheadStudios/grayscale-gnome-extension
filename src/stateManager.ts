@@ -282,6 +282,15 @@ export const StateManager = GObject.registerClass(
                     this._state.isEnabled = enabled;
                     this._state.lastToggleTime = Date.now();
 
+                    if (!enabled) {
+                        this._state.effects.forEach((effect, index) => {
+                            this._state.effects.set(index, {
+                                ...effect,
+                                isActive: false,
+                            });
+                        });
+                    }
+
                     // Commit transaction
                     this._commitTransaction(transaction);
 
