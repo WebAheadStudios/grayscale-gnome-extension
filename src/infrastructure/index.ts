@@ -150,7 +150,7 @@ export function createComponentFactory<T extends BaseComponent>(
         config?: ComponentConfig
     ) => T,
     dependencies: string[] = [],
-    priority: number = 0
+    priority = 0
 ): ComponentFactory<T> {
     return {
         create: (extension: any, metadata: ComponentMetadata, config?: ComponentConfig) => {
