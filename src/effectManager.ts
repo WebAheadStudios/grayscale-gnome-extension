@@ -455,7 +455,9 @@ export const EffectManager = GObject.registerClass(
             previousState: boolean,
             options: any
         ): Promise<void> {
-            if (globalState !== previousState) {
+            const shouldApply =
+                globalState !== previousState || (globalState && !this.isEffectActive(-1));
+            if (shouldApply) {
                 try {
                     // Use lookup_value to safely extract the 'animated' boolean from the a{sv} Variant.
                     // options.unpack() on a{sv} returns values as GLib.Variant wrappers (not raw JS values),
