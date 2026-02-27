@@ -287,6 +287,16 @@ export const StateManager = GObject.registerClass(
 
                     // Persistence
                     if (!skipPersistence) {
+                        if (this._settingsController?.setMultipleSettings) {
+                            await this._settingsController.setMultipleSettings(
+                                {
+                                    'global-enabled': enabled,
+                                    'grayscale-enabled': enabled,
+                                },
+                                { atomic: true, skipEvents: true }
+                            );
+                        }
+
                         this._schedulePersistence();
                     }
 
@@ -557,9 +567,33 @@ export const StateManager = GObject.registerClass(
             try {
                 // Load global state
                 const globalEnabled = this._settingsController.getSetting('global-enabled');
+                const grayscaleEnabled = this._settingsController.getSetting('grayscale-enabled');
+                let resolvedEnabled = false;
+
                 if (typeof globalEnabled === 'boolean') {
-                    this._state.isActive = globalEnabled;
-                    this._state.isEnabled = globalEnabled;
+                    resolvedEnabled = globalEnabled;
+                } else if (typeof grayscaleEnabled === 'boolean') {
+                    resolvedEnabled = grayscaleEnabled;
+                }
+
+                this._state.isActive = resolvedEnabled;
+                this._state.isEnabled = resolvedEnabled;
+
+                if (typeof globalEnabled === 'boolean' || typeof grayscaleEnabled === 'boolean') {
+                    const needsSync =
+                        typeof globalEnabled !== 'boolean' ||
+                        typeof grayscaleEnabled !== 'boolean' ||
+                        globalEnabled !== grayscaleEnabled;
+
+                    if (needsSync && this._settingsController?.setMultipleSettings) {
+                        await this._settingsController.setMultipleSettings(
+                            {
+                                'global-enabled': resolvedEnabled,
+                                'grayscale-enabled': resolvedEnabled,
+                            },
+                            { atomic: true, skipEvents: true }
+                        );
+                    }
                 }
 
                 // Load monitor states
