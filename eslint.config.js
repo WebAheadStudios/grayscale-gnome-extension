@@ -160,18 +160,6 @@ export default [
         },
     },
 
-    // Test files are intentionally excluded from tsconfig.json (type-check scope caveat; see AGENTS.md).
-    // Setting project: null prevents @typescript-eslint/parser from failing with
-    // "file not found in any provided project" when it tries to load type information.
-    {
-        files: ['src/tests/**/*.ts'],
-        languageOptions: {
-            parserOptions: {
-                project: null,
-            },
-        },
-    },
-
     // Configuration for JavaScript files
     {
         files: ['**/*.js', '**/*.jsx'],

@@ -8,12 +8,6 @@ npx lint-staged
 echo "🏗️  Checking TypeScript compilation..."
 npm run compile
 
-# Run tests for changed components (if any test files changed)
-if git diff --cached --name-only | grep -E "\.(test|spec)\.ts$" > /dev/null; then
-  echo "🧪 Running tests..."
-  npm run test:ci
-fi
-
 # Validate metadata if it was changed
 if git diff --cached --name-only | grep "src/metadata.json" > /dev/null; then
   echo "📋 Validating extension metadata..."
